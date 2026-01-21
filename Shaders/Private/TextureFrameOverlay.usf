@@ -1,0 +1,64 @@
+#include "/Engine/Private/Common.ush"
+#include "/Engine/Private/ScreenPass.ush"
+
+SCREEN_PASS_TEXTURE_VIEWPORT(Output)
+
+Texture2D InputTexture;
+SamplerState InputSampler;
+float OverlayOpacity;
+float NormalizeMin;
+float NormalizeInvRange;
+uint ApplyRangeNormalization;
+uint VisualizeAsSingleChannel;
+
+int2 InputRectMin;
+int2 InputRectMax;
+uint ComputeVisualizeAsSingleChannel;
+RWStructuredBuffer<uint> RWVisibleRangeBuffer;
+
+uint EncodeOrderedFloat(float Value)
+{
+	uint Bits = asuint(Value);
+	return Bits ^ ((Bits & 0x80000000u) ? 0xFFFFFFFFu : 0x80000000u);
+}
+
+void MainPS(
+	noperspective float4 UVAndScreenPos : TEXCOORD0,
+	float4 SvPosition : SV_POSITION,
+	out float4 OutColor : SV_Target0)
+{
+	float4 Color = Texture2DSample(InputTexture, InputSampler, UVAndScreenPos.xy);
+	if (ApplyRangeNormalization != 0)
+	{
+		if (VisualizeAsSingleChannel != 0)
+		{
+			float Value = saturate((Color.r - NormalizeMin) * NormalizeInvRange);
+			OutColor = float4(Value.xxx, saturate(OverlayOpacity));
+		}
+		else
+		{
+			float3 Value = saturate((Color.rgb - NormalizeMin) * NormalizeInvRange);
+			OutColor = float4(Value, saturate(OverlayOpacity));
+		}
+	}
+	else
+	{
+		OutColor = float4(Color.rgb, saturate(OverlayOpacity));
+	}
+}
+
+[numthreads(8, 8, 1)]
+void ComputeVisibleRangeCS(uint3 DispatchThreadId : SV_DispatchThreadID)
+{
+	int2 PixelPos = InputRectMin + int2(DispatchThreadId.xy);
+	if (PixelPos.x >= InputRectMax.x || PixelPos.y >= InputRectMax.y)
+	{
+		return;
+	}
+
+	float4 SampleValue = InputTexture.Load(int3(PixelPos, 0));
+	float MinValue = ComputeVisualizeAsSingleChannel != 0 ? SampleValue.r : min(min(SampleValue.r, SampleValue.g), SampleValue.b);
+	float MaxValue = ComputeVisualizeAsSingleChannel != 0 ? SampleValue.r : max(max(SampleValue.r, SampleValue.g), SampleValue.b);
+	InterlockedMin(RWVisibleRangeBuffer[0], EncodeOrderedFloat(MinValue));
+	InterlockedMax(RWVisibleRangeBuffer[1], EncodeOrderedFloat(MaxValue));
+}
