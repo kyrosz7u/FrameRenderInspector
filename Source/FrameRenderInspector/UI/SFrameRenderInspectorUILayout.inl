@@ -38,10 +38,16 @@ void SFrameRenderInspectorUI::Construct(const FArguments& InArgs)
 						+ SVerticalBox::Slot()
 						.AutoHeight()
 						[
-							SNew(STextBlock)
-							.Text(FText::FromString(TEXT("Frame Render Inspector")))
-							.Font(SectionTitleFont)
-							.ColorAndOpacity(FSlateColor(FLinearColor(0.93f, 0.96f, 1.0f)))
+							SNew(SHorizontalBox)
+							+ SHorizontalBox::Slot()
+							.FillWidth(1.0f)
+							.VAlign(VAlign_Center)
+							[
+								SNew(STextBlock)
+								.Text(FText::FromString(TEXT("Frame Render Inspector")))
+								.Font(SectionTitleFont)
+								.ColorAndOpacity(FSlateColor(FLinearColor(0.93f, 0.96f, 1.0f)))
+							]
 						]
 						+ SVerticalBox::Slot()
 						.AutoHeight()

@@ -107,6 +107,62 @@ void SFrameRenderInspectorUI::SetTexturePixelSampleResult(const FTexturePixelSam
 	}
 }
 
+void SFrameRenderInspectorUI::SetInspectorModeValue(int32 InModeValue)
+{
+	const int32 ClampedModeValue = FMath::Clamp(InModeValue, 0, static_cast<int32>(EInspectorMode::VirtualShadowMap));
+	SetInspectorMode(static_cast<EInspectorMode>(ClampedModeValue));
+}
+
+void SFrameRenderInspectorUI::SetBufferViewSettings(int32 InRows, int32 InColumns, const FString& InFormatName)
+{
+	BufferRows = FMath::Clamp(InRows, 1, 128);
+	BufferColumns = FMath::Clamp(InColumns, 1, 64);
+
+	TSharedPtr<FString> MatchedFormat;
+	for (const TSharedPtr<FString>& FormatOption : BufferFormatOptions)
+	{
+		if (FormatOption.IsValid() && FormatOption->Equals(InFormatName, ESearchCase::IgnoreCase))
+		{
+			MatchedFormat = FormatOption;
+			break;
+		}
+	}
+
+	if (!MatchedFormat.IsValid() && BufferFormatOptions.Num() > 0)
+	{
+		MatchedFormat = BufferFormatOptions[0];
+	}
+
+	if (MatchedFormat.IsValid())
+	{
+		SelectedBufferFormatOption = MatchedFormat;
+		if (*MatchedFormat == TEXT("Float"))
+		{
+			BufferDisplayFormat = EBufferDisplayFormat::Float;
+		}
+		else if (*MatchedFormat == TEXT("Int"))
+		{
+			BufferDisplayFormat = EBufferDisplayFormat::Int;
+		}
+		else if (*MatchedFormat == TEXT("Hex"))
+		{
+			BufferDisplayFormat = EBufferDisplayFormat::Hex;
+		}
+		else
+		{
+			BufferDisplayFormat = EBufferDisplayFormat::UInt;
+		}
+	}
+
+	if (BufferFormatComboBox.IsValid())
+	{
+		BufferFormatComboBox->SetSelectedItem(SelectedBufferFormatOption);
+	}
+
+	RebuildSearchMatches();
+	RebuildBufferRows();
+}
+
 void SFrameRenderInspectorUI::SetOnTextureSelected(FOnTextureSelected InOnTextureSelected)
 {
 	OnTextureSelectedDelegate = InOnTextureSelected;
@@ -209,6 +265,26 @@ void SFrameRenderInspectorUI::SetRangeState(float InMin, float InMax, bool bInHa
 	RangeMax = InMax;
 	bHasRange = bInHasRange;
 	bRangeLocked = bInRangeLocked;
+}
+
+int32 SFrameRenderInspectorUI::GetInspectorModeValue() const
+{
+	return static_cast<int32>(ActiveMode);
+}
+
+int32 SFrameRenderInspectorUI::GetBufferRowsSetting() const
+{
+	return BufferRows;
+}
+
+int32 SFrameRenderInspectorUI::GetBufferColumnsSetting() const
+{
+	return BufferColumns;
+}
+
+FString SFrameRenderInspectorUI::GetBufferFormatName() const
+{
+	return SelectedBufferFormatOption.IsValid() ? *SelectedBufferFormatOption : FString(TEXT("UInt"));
 }
 
 void SFrameRenderInspectorUI::RebuildFilteredOptions()

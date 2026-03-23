@@ -43,6 +43,11 @@ public:
 	TSharedPtr<class FFrameRenderInspectorCollector> GetCollector() { return Collector; }
 
 private:
+	void LoadSettings();
+	bool LoadSettingsFromFile(const FString& ConfigPath);
+	void SaveSettings();
+	bool SaveSettingsToFile(const FString& ConfigPath);
+	void ApplySettingsToRuntime();
 	void RegisterMenus();
 	void UnregisterMenus();
 
@@ -61,6 +66,10 @@ private:
 	bool bHasTexturePixelSample = false;
 	float OverlayOpacity = 1.0f;
 	float OverlayCoverage = 0.5f;
+	int32 InspectorModeValue = 0;
+	int32 BufferRowsSetting = 8;
+	int32 BufferColumnsSetting = 16;
+	FString BufferFormatName = TEXT("UInt");
 	float CurrentRangeMin = 0.0f;
 	float CurrentRangeMax = 1.0f;
 	bool bHasRange = false;

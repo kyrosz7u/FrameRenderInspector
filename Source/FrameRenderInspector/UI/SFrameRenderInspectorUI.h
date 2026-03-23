@@ -22,8 +22,14 @@ public:
 	void SetBufferReadbackResult(const FBufferReadbackResult& InReadbackResult);
 	void SetTexturePreviewSize(const FIntPoint& InPreviewSize);
 	void SetTexturePixelSampleResult(const FTexturePixelSampleResult& InSampleResult);
+	void SetInspectorModeValue(int32 InModeValue);
+	void SetBufferViewSettings(int32 InRows, int32 InColumns, const FString& InFormatName);
 	void SetOverlaySettings(float InOpacity, float InCoverage);
 	void SetRangeState(float InMin, float InMax, bool bInHasRange, bool bInRangeLocked);
+	int32 GetInspectorModeValue() const;
+	int32 GetBufferRowsSetting() const;
+	int32 GetBufferColumnsSetting() const;
+	FString GetBufferFormatName() const;
 
 	// Delegate for when a texture is selected
 	DECLARE_DELEGATE_OneParam(FOnTextureSelected, const FString& /*TextureName*/);
