@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "FrameRenderInspectorTypes.h"
+#include "FrameRenderInspectorPixelPickerTypes.h"
 #include "Widgets/SCompoundWidget.h"
 #include "Widgets/Input/SComboBox.h"
 #include "Widgets/Input/SEditableTextBox.h"
@@ -19,6 +20,8 @@ public:
 	void UpdateBufferOptions(const TArray<FBufferDebuggerItem>& BufferItems, const FString& SelectedBufferName);
 	void UpdateRenderOptions(const TArray<FRenderOptionItem>& RenderOptions);
 	void SetBufferReadbackResult(const FBufferReadbackResult& InReadbackResult);
+	void SetTexturePreviewSize(const FIntPoint& InPreviewSize);
+	void SetTexturePixelSampleResult(const FTexturePixelSampleResult& InSampleResult);
 	void SetOverlaySettings(float InOpacity, float InCoverage);
 	void SetRangeState(float InMin, float InMax, bool bInHasRange, bool bInRangeLocked);
 
@@ -31,6 +34,8 @@ public:
 	DECLARE_DELEGATE_OneParam(FOnOverlayOpacityChanged, float /*Opacity*/);
 	DECLARE_DELEGATE_OneParam(FOnOverlayCoverageChanged, float /*Coverage*/);
 	DECLARE_DELEGATE(FOnComputeVisibleRange);
+	DECLARE_DELEGATE_TwoParams(FOnRequestTexturePixelSample, int32 /*PixelX*/, int32 /*PixelY*/);
+	DECLARE_DELEGATE(FOnBeginViewportTexturePick);
 	DECLARE_DELEGATE_OneParam(FOnRangeLockChanged, bool /*bLocked*/);
 	DECLARE_DELEGATE_TwoParams(FOnRangeEdited, float /*Min*/, float /*Max*/);
 	void SetOnTextureSelected(FOnTextureSelected InOnTextureSelected);
@@ -41,8 +46,11 @@ public:
 	void SetOnOverlayOpacityChanged(FOnOverlayOpacityChanged InOnOverlayOpacityChanged);
 	void SetOnOverlayCoverageChanged(FOnOverlayCoverageChanged InOnOverlayCoverageChanged);
 	void SetOnComputeVisibleRange(FOnComputeVisibleRange InOnComputeVisibleRange);
+	void SetOnRequestTexturePixelSample(FOnRequestTexturePixelSample InOnRequestTexturePixelSample);
+	void SetOnBeginViewportTexturePick(FOnBeginViewportTexturePick InOnBeginViewportTexturePick);
 	void SetOnRangeLockChanged(FOnRangeLockChanged InOnRangeLockChanged);
 	void SetOnRangeEdited(FOnRangeEdited InOnRangeEdited);
+	void SetViewportPickArmed(bool bInViewportPickArmed);
 
 private:
 	enum class EInspectorMode : uint8
@@ -111,10 +119,12 @@ private:
 
 	float OverlayOpacity = 1.0f;
 	float OverlayCoverage = 0.5f;
+	FIntPoint TexturePreviewSize = FIntPoint::ZeroValue;
 	float RangeMin = 0.0f;
 	float RangeMax = 1.0f;
 	bool bHasRange = false;
 	bool bRangeLocked = false;
+	TSharedPtr<class SFrameRenderInspectorPixelPicker> TexturePixelPickerWidget;
 	FOnTextureSelected OnTextureSelectedDelegate;
 	FOnBufferSelected OnBufferSelectedDelegate;
 	FOnRefreshBuffer OnRefreshBufferDelegate;
@@ -123,6 +133,8 @@ private:
 	FOnOverlayOpacityChanged OnOverlayOpacityChangedDelegate;
 	FOnOverlayCoverageChanged OnOverlayCoverageChangedDelegate;
 	FOnComputeVisibleRange OnComputeVisibleRangeDelegate;
+	FOnRequestTexturePixelSample OnRequestTexturePixelSampleDelegate;
+	FOnBeginViewportTexturePick OnBeginViewportTexturePickDelegate;
 	FOnRangeLockChanged OnRangeLockChangedDelegate;
 	FOnRangeEdited OnRangeEditedDelegate;
 

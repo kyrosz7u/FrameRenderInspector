@@ -15,6 +15,8 @@ int2 InputRectMin;
 int2 InputRectMax;
 uint ComputeVisualizeAsSingleChannel;
 RWStructuredBuffer<uint> RWVisibleRangeBuffer;
+int2 SourcePixelCoord;
+RWStructuredBuffer<uint> RWSampledPixelBuffer;
 
 uint EncodeOrderedFloat(float Value)
 {
@@ -61,4 +63,34 @@ void ComputeVisibleRangeCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 	float MaxValue = ComputeVisualizeAsSingleChannel != 0 ? SampleValue.r : max(max(SampleValue.r, SampleValue.g), SampleValue.b);
 	InterlockedMin(RWVisibleRangeBuffer[0], EncodeOrderedFloat(MinValue));
 	InterlockedMax(RWVisibleRangeBuffer[1], EncodeOrderedFloat(MaxValue));
+}
+
+[numthreads(1, 1, 1)]
+void SamplePixelCS(uint3 DispatchThreadId : SV_DispatchThreadID)
+{
+	float4 Color = InputTexture.Load(int3(SourcePixelCoord, 0));
+	float4 OutputColor = Color;
+
+	if (ApplyRangeNormalization != 0)
+	{
+		if (VisualizeAsSingleChannel != 0)
+		{
+			float Value = saturate((Color.r - NormalizeMin) * NormalizeInvRange);
+			OutputColor = float4(Value.xxx, Color.a);
+		}
+		else
+		{
+			float3 Value = saturate((Color.rgb - NormalizeMin) * NormalizeInvRange);
+			OutputColor = float4(Value, Color.a);
+		}
+	}
+	else if (VisualizeAsSingleChannel != 0)
+	{
+		OutputColor = float4(Color.rrr, Color.a);
+	}
+
+	RWSampledPixelBuffer[0] = asuint(OutputColor.r);
+	RWSampledPixelBuffer[1] = asuint(OutputColor.g);
+	RWSampledPixelBuffer[2] = asuint(OutputColor.b);
+	RWSampledPixelBuffer[3] = asuint(OutputColor.a);
 }

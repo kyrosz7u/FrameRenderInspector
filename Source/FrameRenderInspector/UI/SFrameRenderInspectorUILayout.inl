@@ -313,6 +313,31 @@ void SFrameRenderInspectorUI::Construct(const FArguments& InArgs)
 				]
 				+ SVerticalBox::Slot()
 				.AutoHeight()
+				.Padding(0.0f, 10.0f, 0.0f, 0.0f)
+				[
+					SNew(SBorder)
+					.Padding(10.0f)
+					.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
+					[
+						SNew(SVerticalBox)
+						+ SVerticalBox::Slot()
+						.AutoHeight()
+						.Padding(0.0f, 0.0f, 0.0f, 6.0f)
+						[
+							SNew(STextBlock)
+							.Text(FText::FromString(TEXT("Pixel Picker")))
+							.Font(ControlFont)
+							.ColorAndOpacity(FSlateColor(FLinearColor(0.65f, 0.85f, 1.0f)))
+						]
+						+ SVerticalBox::Slot()
+						.AutoHeight()
+						[
+							SAssignNew(TexturePixelPickerWidget, SFrameRenderInspectorPixelPicker)
+						]
+					]
+				]
+				+ SVerticalBox::Slot()
+				.AutoHeight()
 				.Padding(0.0f, 14.0f, 0.0f, 14.0f)
 				[
 					SNew(SSeparator)

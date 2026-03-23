@@ -54,6 +54,24 @@ public:
 
 IMPLEMENT_GLOBAL_SHADER(FFrameRenderInspectorComputeVisibleRangeCS, "/Plugin/FrameRenderInspector/Private/FrameRenderInspectorOverlay.usf", "ComputeVisibleRangeCS", SF_Compute);
 
+class FFrameRenderInspectorSamplePixelCS : public FGlobalShader
+{
+	DECLARE_GLOBAL_SHADER(FFrameRenderInspectorSamplePixelCS);
+	SHADER_USE_PARAMETER_STRUCT(FFrameRenderInspectorSamplePixelCS, FGlobalShader);
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER_RDG_TEXTURE_SRV(Texture2D, InputTexture)
+		SHADER_PARAMETER(FIntPoint, SourcePixelCoord)
+		SHADER_PARAMETER(float, NormalizeMin)
+		SHADER_PARAMETER(float, NormalizeInvRange)
+		SHADER_PARAMETER(uint32, ApplyRangeNormalization)
+		SHADER_PARAMETER(uint32, VisualizeAsSingleChannel)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<uint>, RWSampledPixelBuffer)
+	END_SHADER_PARAMETER_STRUCT()
+};
+
+IMPLEMENT_GLOBAL_SHADER(FFrameRenderInspectorSamplePixelCS, "/Plugin/FrameRenderInspector/Private/FrameRenderInspectorOverlay.usf", "SamplePixelCS", SF_Compute);
+
 static uint32 EncodeOrderedFloat(float Value)
 {
 	union
@@ -75,6 +93,18 @@ static float DecodeOrderedFloat(uint32 Value)
 	} Converter;
 
 	Converter.UintValue = Value ^ ((Value & 0x80000000u) ? 0x80000000u : 0xFFFFFFFFu);
+	return Converter.FloatValue;
+}
+
+static float DecodeRawFloat(uint32 Value)
+{
+	union
+	{
+		float FloatValue;
+		uint32 UintValue;
+	} Converter;
+
+	Converter.UintValue = Value;
 	return Converter.FloatValue;
 }
 
@@ -146,11 +176,42 @@ static void AddComputeVisibleRangePass(
 		FComputeShaderUtils::GetGroupCount(InputRect.Size(), FIntPoint(FFrameRenderInspectorComputeVisibleRangeCS::ThreadGroupSizeX, FFrameRenderInspectorComputeVisibleRangeCS::ThreadGroupSizeY)));
 }
 
+static void AddSamplePixelPass(
+	FRDGBuilder& GraphBuilder,
+	const FViewInfo& View,
+	FRDGTextureRef InputTexture,
+	FIntPoint SourcePixelCoord,
+	bool bApplyRangeNormalization,
+	bool bVisualizeAsSingleChannel,
+	float NormalizeMin,
+	float NormalizeMax,
+	FRDGBufferRef SampledPixelBuffer)
+{
+	TShaderMapRef<FFrameRenderInspectorSamplePixelCS> ComputeShader(View.ShaderMap);
+
+	FFrameRenderInspectorSamplePixelCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FFrameRenderInspectorSamplePixelCS::FParameters>();
+	PassParameters->InputTexture = GraphBuilder.CreateSRV(FRDGTextureSRVDesc::Create(InputTexture));
+	PassParameters->SourcePixelCoord = SourcePixelCoord;
+	PassParameters->NormalizeMin = NormalizeMin;
+	PassParameters->NormalizeInvRange = (NormalizeMax > NormalizeMin) ? (1.0f / (NormalizeMax - NormalizeMin)) : 1.0f;
+	PassParameters->ApplyRangeNormalization = bApplyRangeNormalization ? 1u : 0u;
+	PassParameters->VisualizeAsSingleChannel = bVisualizeAsSingleChannel ? 1u : 0u;
+	PassParameters->RWSampledPixelBuffer = GraphBuilder.CreateUAV(SampledPixelBuffer);
+
+	FComputeShaderUtils::AddPass(
+		GraphBuilder,
+		RDG_EVENT_NAME("TextureFrameSamplePixel"),
+		ComputeShader,
+		PassParameters,
+		FIntVector(1, 1, 1));
+}
+
 FFrameRenderInspectorCollector::FFrameRenderInspectorCollector(const FAutoRegister& AutoRegister)
 	: FSceneViewExtensionBase(AutoRegister)
 	, bIsCaptureEnabled(false)
 {
 	AutoRangeReadback = MakeUnique<FRHIGPUBufferReadback>(TEXT("FrameRenderInspector.VisibleRangeReadback"));
+	TexturePixelReadback = MakeUnique<FRHIGPUBufferReadback>(TEXT("FrameRenderInspector.TexturePixelReadback"));
 	BufferReadback = MakeUnique<FRHIGPUBufferReadback>(TEXT("FrameRenderInspector.BufferReadback"));
 }
 
@@ -213,6 +274,16 @@ void FFrameRenderInspectorCollector::RequestVisibleRangeUpdate()
 	}
 }
 
+void FFrameRenderInspectorCollector::RequestTexturePixelSample(int32 PixelX, int32 PixelY)
+{
+	FScopeLock Lock(&SelectedTextureMutex);
+	if (!SelectedTextureName.IsEmpty())
+	{
+		PendingTexturePixel = FIntPoint(FMath::Max(0, PixelX), FMath::Max(0, PixelY));
+		bPendingTexturePixelSample = true;
+	}
+}
+
 void FFrameRenderInspectorCollector::RequestBufferCapture()
 {
 	FScopeLock Lock(&SelectedTextureMutex);
@@ -228,6 +299,19 @@ bool FFrameRenderInspectorCollector::ConsumeVisibleRangeUpdateRequest()
 	const bool bWasPending = bPendingVisibleRangeUpdate;
 	bPendingVisibleRangeUpdate = false;
 	return bWasPending;
+}
+
+bool FFrameRenderInspectorCollector::ConsumeTexturePixelSampleRequest(FIntPoint& OutPixelCoord)
+{
+	FScopeLock Lock(&SelectedTextureMutex);
+	if (!bPendingTexturePixelSample || SelectedTextureName.IsEmpty())
+	{
+		return false;
+	}
+
+	OutPixelCoord = PendingTexturePixel;
+	bPendingTexturePixelSample = false;
+	return true;
 }
 
 bool FFrameRenderInspectorCollector::ConsumeBufferCaptureRequest(FString& OutBufferName)
@@ -275,6 +359,75 @@ void FFrameRenderInspectorCollector::PollAutoRangeReadback()
 
 	FScopeLock Lock(&SelectedTextureMutex);
 	bAutoRangeReadbackPending = false;
+}
+
+void FFrameRenderInspectorCollector::PollTexturePixelReadback()
+{
+	if (!TexturePixelReadback.IsValid())
+	{
+		return;
+	}
+
+	bool bIsReady = false;
+	FString CompletedTextureName;
+	FIntPoint CompletedPreviewSize = FIntPoint::ZeroValue;
+	FIntPoint CompletedPixel = FIntPoint::ZeroValue;
+	{
+		FScopeLock Lock(&SelectedTextureMutex);
+		bIsReady = bTexturePixelReadbackPending && TexturePixelReadback->IsReady();
+		CompletedTextureName = TexturePixelReadbackName;
+		CompletedPreviewSize = TexturePixelReadbackPreviewSize;
+		CompletedPixel = TexturePixelReadbackPixel;
+	}
+
+	if (!bIsReady)
+	{
+		return;
+	}
+
+	FTexturePixelSampleResult Result;
+	Result.Name = CompletedTextureName;
+	Result.PreviewSize = CompletedPreviewSize;
+	Result.SamplePixel = CompletedPixel;
+
+	const uint32* SampleData = static_cast<const uint32*>(TexturePixelReadback->Lock(sizeof(uint32) * 4));
+	if (SampleData)
+	{
+		Result.SampledColor = FLinearColor(
+			DecodeRawFloat(SampleData[0]),
+			DecodeRawFloat(SampleData[1]),
+			DecodeRawFloat(SampleData[2]),
+			DecodeRawFloat(SampleData[3]));
+		Result.SampledColorLDR = Result.SampledColor.ToFColor(true);
+		Result.bSucceeded = true;
+		Result.StatusMessage = FString::Printf(
+			TEXT("Sampled %s at (%d, %d) in %d x %d DebuggerRT."),
+			*CompletedTextureName,
+			CompletedPixel.X,
+			CompletedPixel.Y,
+			CompletedPreviewSize.X,
+			CompletedPreviewSize.Y);
+	}
+	else
+	{
+		Result.StatusMessage = FString::Printf(TEXT("Pixel sample failed for %s."), *CompletedTextureName);
+	}
+
+	TexturePixelReadback->Unlock();
+
+	{
+		FScopeLock Lock(&SelectedTextureMutex);
+		bTexturePixelReadbackPending = false;
+		TexturePixelReadbackName.Reset();
+		TexturePixelReadbackPreviewSize = FIntPoint::ZeroValue;
+		TexturePixelReadbackPixel = FIntPoint::ZeroValue;
+	}
+
+	AsyncTask(ENamedThreads::GameThread, [Result = MoveTemp(Result)]() mutable
+	{
+		FFrameRenderInspectorModule& Module = FModuleManager::GetModuleChecked<FFrameRenderInspectorModule>("FrameRenderInspector");
+		Module.UpdateTexturePixelSample(Result);
+	});
 }
 
 void FFrameRenderInspectorCollector::PollBufferReadback()
@@ -419,6 +572,7 @@ void FFrameRenderInspectorCollector::SubscribeToPostProcessingPass(
 					return SceneColor;
 				}
 
+				PollTexturePixelReadback();
 				PollBufferReadback();
 
 				TMap<FString, FIntPoint> CollectedInfo;
@@ -640,6 +794,26 @@ void FFrameRenderInspectorCollector::DrawSelectedTexturePreview(
 		SceneViewRect.Min.X + InputRect.Width(),
 		SceneViewRect.Max.Y);
 
+	const FIntPoint PreviewSize(InputRect.Width(), InputRect.Height());
+	bool bShouldReportPreviewSize = false;
+	{
+		FScopeLock Lock(&SelectedTextureMutex);
+		if (LastPreviewSize != PreviewSize)
+		{
+			LastPreviewSize = PreviewSize;
+			bShouldReportPreviewSize = true;
+		}
+	}
+
+	if (bShouldReportPreviewSize)
+	{
+		AsyncTask(ENamedThreads::GameThread, [PreviewSize]()
+		{
+			FFrameRenderInspectorModule& Module = FModuleManager::GetModuleChecked<FFrameRenderInspectorModule>("FrameRenderInspector");
+			Module.UpdateTexturePreviewSize(PreviewSize);
+		});
+	}
+
 	if (ConsumeVisibleRangeUpdateRequest())
 	{
 		TStaticArray<uint32, 2> InitialRangeData;
@@ -671,6 +845,53 @@ void FFrameRenderInspectorCollector::DrawSelectedTexturePreview(
 			FScopeLock Lock(&SelectedTextureMutex);
 			bPendingVisibleRangeUpdate = false;
 		}
+	}
+
+	FIntPoint RequestedPixel = FIntPoint::ZeroValue;
+	if (ConsumeTexturePixelSampleRequest(RequestedPixel) && TexturePixelReadback.IsValid())
+	{
+		const FIntPoint ClampedPreviewPixel(
+			FMath::Clamp(RequestedPixel.X, 0, PreviewSize.X - 1),
+			FMath::Clamp(RequestedPixel.Y, 0, PreviewSize.Y - 1));
+		const FIntPoint SourcePixelCoord(
+			InputRect.Min.X + ClampedPreviewPixel.X,
+			InputRect.Min.Y + ClampedPreviewPixel.Y);
+
+		TStaticArray<uint32, 4> InitialPixelData;
+		InitialPixelData[0] = 0u;
+		InitialPixelData[1] = 0u;
+		InitialPixelData[2] = 0u;
+		InitialPixelData[3] = 0u;
+
+		FRDGBufferRef SampledPixelBuffer = CreateStructuredBuffer(
+			GraphBuilder,
+			TEXT("TextureFrame.SampledPixel"),
+			sizeof(uint32),
+			InitialPixelData.Num(),
+			InitialPixelData.GetData(),
+			sizeof(uint32) * InitialPixelData.Num());
+
+		AddSamplePixelPass(
+			GraphBuilder,
+			View,
+			SelectedTexture,
+			SourcePixelCoord,
+			bApplyRangeNormalization,
+			bVisualizeAsSingleChannel,
+			CurrentAutoRangeMin,
+			CurrentAutoRangeMax,
+			SampledPixelBuffer);
+
+		AddReadbackBufferPass(GraphBuilder, RDG_EVENT_NAME("TextureFrameSamplePixelReadback"), SampledPixelBuffer,
+			[this, SampledPixelBuffer, CurrentSelectedTexture = GetSelectedTextureName(), PreviewSize, ClampedPreviewPixel](FRHICommandList& RHICmdList)
+			{
+				TexturePixelReadback->EnqueueCopy(RHICmdList, SampledPixelBuffer->GetRHI(), sizeof(uint32) * 4);
+				FScopeLock Lock(&SelectedTextureMutex);
+				bTexturePixelReadbackPending = true;
+				TexturePixelReadbackName = CurrentSelectedTexture;
+				TexturePixelReadbackPreviewSize = PreviewSize;
+				TexturePixelReadbackPixel = ClampedPreviewPixel;
+			});
 	}
 
 	AddFrameRenderInspectorOverlayPass(

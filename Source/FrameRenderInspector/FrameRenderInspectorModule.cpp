@@ -1,6 +1,7 @@
 #include "FrameRenderInspectorModule.h"
 #include "SFrameRenderInspectorUI.h"
 #include "FrameRenderInspectorCollector.h"
+#include "FrameRenderInspectorPixelPickerModule.h"
 #include "Engine/Engine.h"
 #include "Interfaces/IPluginManager.h"
 #include "HAL/IConsoleManager.h"
@@ -92,16 +93,23 @@ TSharedRef<SDockTab> FFrameRenderInspectorModule::OnSpawnPluginTab(const FSpawnT
 	DebuggerUI->SetOnOverlayOpacityChanged(SFrameRenderInspectorUI::FOnOverlayOpacityChanged::CreateRaw(this, &FFrameRenderInspectorModule::OnOverlayOpacityChanged));
 	DebuggerUI->SetOnOverlayCoverageChanged(SFrameRenderInspectorUI::FOnOverlayCoverageChanged::CreateRaw(this, &FFrameRenderInspectorModule::OnOverlayCoverageChanged));
 	DebuggerUI->SetOnComputeVisibleRange(SFrameRenderInspectorUI::FOnComputeVisibleRange::CreateRaw(this, &FFrameRenderInspectorModule::OnComputeVisibleRangeRequested));
+	DebuggerUI->SetOnRequestTexturePixelSample(SFrameRenderInspectorUI::FOnRequestTexturePixelSample::CreateRaw(this, &FFrameRenderInspectorModule::OnRequestTexturePixelSample));
+	DebuggerUI->SetOnBeginViewportTexturePick(SFrameRenderInspectorUI::FOnBeginViewportTexturePick::CreateRaw(this, &FFrameRenderInspectorModule::OnBeginViewportTexturePick));
 	DebuggerUI->SetOnRangeLockChanged(SFrameRenderInspectorUI::FOnRangeLockChanged::CreateRaw(this, &FFrameRenderInspectorModule::OnRangeLockChanged));
 	DebuggerUI->SetOnRangeEdited(SFrameRenderInspectorUI::FOnRangeEdited::CreateRaw(this, &FFrameRenderInspectorModule::OnRangeEdited));
 	DebuggerUI->UpdateTextureOptions(CachedTextureNames, SelectedTextureName);
 	DebuggerUI->UpdateBufferOptions(CachedBufferItems, SelectedBufferName);
 	DebuggerUI->UpdateRenderOptions(CachedRenderOptions);
+	DebuggerUI->SetTexturePreviewSize(CurrentTexturePreviewSize);
 	DebuggerUI->SetOverlaySettings(OverlayOpacity, OverlayCoverage);
 	DebuggerUI->SetRangeState(CurrentRangeMin, CurrentRangeMax, bHasRange, bRangeLocked);
 	if (bHasBufferReadback)
 	{
 		DebuggerUI->SetBufferReadbackResult(LatestBufferReadback);
+	}
+	if (bHasTexturePixelSample)
+	{
+		DebuggerUI->SetTexturePixelSampleResult(LatestTexturePixelSample);
 	}
 
 	// Enable capture when window is opened
@@ -203,6 +211,27 @@ void FFrameRenderInspectorModule::UpdateBufferReadback(const FBufferReadbackResu
 	if (DebuggerUI.IsValid())
 	{
 		DebuggerUI->SetBufferReadbackResult(ReadbackResult);
+	}
+}
+
+void FFrameRenderInspectorModule::UpdateTexturePreviewSize(const FIntPoint& PreviewSize)
+{
+	CurrentTexturePreviewSize = PreviewSize;
+
+	if (DebuggerUI.IsValid())
+	{
+		DebuggerUI->SetTexturePreviewSize(PreviewSize);
+	}
+}
+
+void FFrameRenderInspectorModule::UpdateTexturePixelSample(const FTexturePixelSampleResult& SampleResult)
+{
+	LatestTexturePixelSample = SampleResult;
+	bHasTexturePixelSample = true;
+
+	if (DebuggerUI.IsValid())
+	{
+		DebuggerUI->SetTexturePixelSampleResult(SampleResult);
 	}
 }
 
@@ -332,6 +361,51 @@ void FFrameRenderInspectorModule::OnComputeVisibleRangeRequested()
 	if (Collector.IsValid())
 	{
 		Collector->RequestVisibleRangeUpdate();
+	}
+}
+
+void FFrameRenderInspectorModule::OnRequestTexturePixelSample(int32 PixelX, int32 PixelY)
+{
+	if (Collector.IsValid())
+	{
+		Collector->RequestTexturePixelSample(PixelX, PixelY);
+	}
+}
+
+void FFrameRenderInspectorModule::OnBeginViewportTexturePick()
+{
+	FFrameRenderInspectorPixelPickerModule& PixelPickerModule =
+		FModuleManager::LoadModuleChecked<FFrameRenderInspectorPixelPickerModule>("FrameRenderInspectorPixelPicker");
+
+	if (CurrentTexturePreviewSize.X <= 0 || CurrentTexturePreviewSize.Y <= 0)
+	{
+		if (DebuggerUI.IsValid())
+		{
+			DebuggerUI->SetViewportPickArmed(false);
+		}
+		return;
+	}
+
+	PixelPickerModule.ArmViewportPicker(
+		CurrentTexturePreviewSize,
+		FFrameRenderInspectorPixelPickerModule::FOnViewportPixelPicked::CreateRaw(this, &FFrameRenderInspectorModule::OnViewportTexturePickCompleted));
+
+	if (DebuggerUI.IsValid())
+	{
+		DebuggerUI->SetViewportPickArmed(PixelPickerModule.IsViewportPickerArmed());
+	}
+}
+
+void FFrameRenderInspectorModule::OnViewportTexturePickCompleted(bool bSucceeded, int32 PixelX, int32 PixelY)
+{
+	if (DebuggerUI.IsValid())
+	{
+		DebuggerUI->SetViewportPickArmed(false);
+	}
+
+	if (bSucceeded && Collector.IsValid())
+	{
+		Collector->RequestTexturePixelSample(PixelX, PixelY);
 	}
 }
 

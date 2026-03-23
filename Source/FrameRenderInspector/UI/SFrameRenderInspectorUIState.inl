@@ -24,6 +24,11 @@ void SFrameRenderInspectorUI::UpdateTextureOptions(const TArray<FString>& Textur
 		TextureComboBox->RefreshOptions();
 		TextureComboBox->SetSelectedItem(SelectedTextureOption);
 	}
+
+	if (TexturePixelPickerWidget.IsValid())
+	{
+		TexturePixelPickerWidget->SetSelectedTextureName(SelectedTextureOption.IsValid() ? *SelectedTextureOption : FString());
+	}
 }
 
 void SFrameRenderInspectorUI::UpdateBufferOptions(const TArray<FBufferDebuggerItem>& BufferItems, const FString& SelectedBufferName)
@@ -85,6 +90,23 @@ void SFrameRenderInspectorUI::SetBufferReadbackResult(const FBufferReadbackResul
 	RebuildBufferRows();
 }
 
+void SFrameRenderInspectorUI::SetTexturePreviewSize(const FIntPoint& InPreviewSize)
+{
+	TexturePreviewSize = InPreviewSize;
+	if (TexturePixelPickerWidget.IsValid())
+	{
+		TexturePixelPickerWidget->SetPreviewSize(InPreviewSize);
+	}
+}
+
+void SFrameRenderInspectorUI::SetTexturePixelSampleResult(const FTexturePixelSampleResult& InSampleResult)
+{
+	if (TexturePixelPickerWidget.IsValid())
+	{
+		TexturePixelPickerWidget->SetSampleResult(InSampleResult);
+	}
+}
+
 void SFrameRenderInspectorUI::SetOnTextureSelected(FOnTextureSelected InOnTextureSelected)
 {
 	OnTextureSelectedDelegate = InOnTextureSelected;
@@ -123,6 +145,46 @@ void SFrameRenderInspectorUI::SetOnOverlayCoverageChanged(FOnOverlayCoverageChan
 void SFrameRenderInspectorUI::SetOnComputeVisibleRange(FOnComputeVisibleRange InOnComputeVisibleRange)
 {
 	OnComputeVisibleRangeDelegate = InOnComputeVisibleRange;
+}
+
+void SFrameRenderInspectorUI::SetOnRequestTexturePixelSample(FOnRequestTexturePixelSample InOnRequestTexturePixelSample)
+{
+	OnRequestTexturePixelSampleDelegate = InOnRequestTexturePixelSample;
+	if (TexturePixelPickerWidget.IsValid())
+	{
+		TexturePixelPickerWidget->SetOnRequestPixelSample(
+			SFrameRenderInspectorPixelPicker::FOnRequestPixelSample::CreateLambda([this](int32 PixelX, int32 PixelY)
+			{
+				if (OnRequestTexturePixelSampleDelegate.IsBound())
+				{
+					OnRequestTexturePixelSampleDelegate.Execute(PixelX, PixelY);
+				}
+			}));
+	}
+}
+
+void SFrameRenderInspectorUI::SetOnBeginViewportTexturePick(FOnBeginViewportTexturePick InOnBeginViewportTexturePick)
+{
+	OnBeginViewportTexturePickDelegate = InOnBeginViewportTexturePick;
+	if (TexturePixelPickerWidget.IsValid())
+	{
+		TexturePixelPickerWidget->SetOnBeginViewportPick(
+			SFrameRenderInspectorPixelPicker::FOnBeginViewportPick::CreateLambda([this]()
+			{
+				if (OnBeginViewportTexturePickDelegate.IsBound())
+				{
+					OnBeginViewportTexturePickDelegate.Execute();
+				}
+			}));
+	}
+}
+
+void SFrameRenderInspectorUI::SetViewportPickArmed(bool bInViewportPickArmed)
+{
+	if (TexturePixelPickerWidget.IsValid())
+	{
+		TexturePixelPickerWidget->SetViewportPickArmed(bInViewportPickArmed);
+	}
 }
 
 void SFrameRenderInspectorUI::SetOnRangeLockChanged(FOnRangeLockChanged InOnRangeLockChanged)

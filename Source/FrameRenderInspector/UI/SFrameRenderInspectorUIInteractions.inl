@@ -2,6 +2,11 @@ void SFrameRenderInspectorUI::OnTextureSelectionChanged(TSharedPtr<FString> Item
 {
 	SelectedTextureOption = Item;
 
+	if (TexturePixelPickerWidget.IsValid())
+	{
+		TexturePixelPickerWidget->SetSelectedTextureName(Item.IsValid() ? *Item : FString());
+	}
+
 	if (Item.IsValid() && OnTextureSelectedDelegate.IsBound())
 	{
 		OnTextureSelectedDelegate.Execute(*Item);

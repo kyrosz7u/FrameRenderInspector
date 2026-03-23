@@ -26,6 +26,7 @@ public class FrameRenderInspector : ModuleRules
 				"EditorStyle",
 				"UnrealEd",
 				"ToolMenus",
+				"FrameRenderInspectorPixelPicker",
 				"Projects",
 				"RenderCore",
 				"RHI",

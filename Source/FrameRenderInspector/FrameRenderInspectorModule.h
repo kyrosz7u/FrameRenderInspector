@@ -3,6 +3,7 @@
 #include "CoreMinimal.h"
 #include "Modules/ModuleManager.h"
 #include "FrameRenderInspectorTypes.h"
+#include "FrameRenderInspectorPixelPickerTypes.h"
 #include "FrameRenderInspectorCollector.h"
 
 class FFrameRenderInspectorModule : public IModuleInterface
@@ -19,6 +20,8 @@ public:
 	// This should be called on the Game Thread
 	void UpdateUI(const TArray<FTextureDebuggerItem>& TextureItems, const TArray<FBufferDebuggerItem>& BufferItems);
 	void UpdateBufferReadback(const FBufferReadbackResult& ReadbackResult);
+	void UpdateTexturePreviewSize(const FIntPoint& PreviewSize);
+	void UpdateTexturePixelSample(const FTexturePixelSampleResult& SampleResult);
 	void RefreshRenderOptions();
 
 	// Called when a texture is selected in the UI
@@ -30,6 +33,9 @@ public:
 	void OnOverlayOpacityChanged(float NewOpacity);
 	void OnOverlayCoverageChanged(float NewCoverage);
 	void OnComputeVisibleRangeRequested();
+	void OnRequestTexturePixelSample(int32 PixelX, int32 PixelY);
+	void OnBeginViewportTexturePick();
+	void OnViewportTexturePickCompleted(bool bSucceeded, int32 PixelX, int32 PixelY);
 	void OnRangeLockChanged(bool bLocked);
 	void OnRangeEdited(float NewMin, float NewMax);
 
@@ -48,8 +54,11 @@ private:
 	TArray<FRenderOptionItem> CachedRenderOptions;
 	FString SelectedTextureName;
 	FString SelectedBufferName;
+	FIntPoint CurrentTexturePreviewSize = FIntPoint::ZeroValue;
 	FBufferReadbackResult LatestBufferReadback;
 	bool bHasBufferReadback = false;
+	FTexturePixelSampleResult LatestTexturePixelSample;
+	bool bHasTexturePixelSample = false;
 	float OverlayOpacity = 1.0f;
 	float OverlayCoverage = 0.5f;
 	float CurrentRangeMin = 0.0f;

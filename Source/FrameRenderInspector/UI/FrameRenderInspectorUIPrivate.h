@@ -2,6 +2,7 @@
 
 #include "SFrameRenderInspectorUI.h"
 
+#include "SFrameRenderInspectorPixelPicker.h"
 #include "HAL/PlatformApplicationMisc.h"
 #include "Misc/DefaultValueHelper.h"
 #include "Styling/AppStyle.h"

@@ -4,6 +4,7 @@
 #include "HAL/CriticalSection.h"
 #include "SceneViewExtension.h"
 #include "FrameRenderInspectorTypes.h"
+#include "FrameRenderInspectorPixelPickerTypes.h"
 
 // Forward declarations
 class FRDGBuilder;
@@ -46,6 +47,7 @@ public:
 	void SetRangeLocked(bool bLocked);
 	void SetManualRange(float InMin, float InMax);
 	void RequestVisibleRangeUpdate();
+	void RequestTexturePixelSample(int32 PixelX, int32 PixelY);
 	void RequestBufferCapture();
 	void GetRangeState(float& OutMin, float& OutMax, bool& bOutHasRange, bool& bOutRangeLocked) const;
 
@@ -62,6 +64,14 @@ private:
 	bool bPendingVisibleRangeUpdate = false;
 	TUniquePtr<FRHIGPUBufferReadback> AutoRangeReadback;
 	bool bAutoRangeReadbackPending = false;
+	TUniquePtr<FRHIGPUBufferReadback> TexturePixelReadback;
+	bool bTexturePixelReadbackPending = false;
+	bool bPendingTexturePixelSample = false;
+	FIntPoint PendingTexturePixel = FIntPoint::ZeroValue;
+	FString TexturePixelReadbackName;
+	FIntPoint TexturePixelReadbackPreviewSize = FIntPoint::ZeroValue;
+	FIntPoint TexturePixelReadbackPixel = FIntPoint::ZeroValue;
+	FIntPoint LastPreviewSize = FIntPoint::ZeroValue;
 	TArray<FString> LastCollectedTextureNames;
 	TArray<FBufferDebuggerItem> LastCollectedBuffers;
 	TUniquePtr<FRHIGPUBufferReadback> BufferReadback;
@@ -80,8 +90,10 @@ private:
 	void GetOverlaySettings(float& OutOpacity, float& OutCoverage, float& OutAutoRangeMin, float& OutAutoRangeMax) const;
 	void SetAutoRange(float InMin, float InMax);
 	bool ConsumeVisibleRangeUpdateRequest();
+	bool ConsumeTexturePixelSampleRequest(FIntPoint& OutPixelCoord);
 	bool ConsumeBufferCaptureRequest(FString& OutBufferName);
 	void PollAutoRangeReadback();
+	void PollTexturePixelReadback();
 	void PollBufferReadback();
 	void DrawSelectedTexturePreview(FRDGBuilder& GraphBuilder, const FViewInfo& View, FRDGTexture* SelectedTexture, const FScreenPassTexture& SceneColor);
 };
