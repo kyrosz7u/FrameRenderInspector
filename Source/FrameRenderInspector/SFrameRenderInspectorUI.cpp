@@ -1,4 +1,4 @@
-#include "STextureFrameDebuggerUI.h"
+#include "SFrameRenderInspectorUI.h"
 
 #include "HAL/PlatformApplicationMisc.h"
 #include "Misc/DefaultValueHelper.h"
@@ -76,7 +76,7 @@ namespace
 	}
 }
 
-void STextureFrameDebuggerUI::Construct(const FArguments& InArgs)
+void SFrameRenderInspectorUI::Construct(const FArguments& InArgs)
 {
 	FSlateFontInfo SectionTitleFont = FAppStyle::GetFontStyle("PropertyWindow.BoldFont");
 	SectionTitleFont.Size += 6;
@@ -109,7 +109,7 @@ void STextureFrameDebuggerUI::Construct(const FArguments& InArgs)
 				.Padding(0.0f, 0.0f, 0.0f, 10.0f)
 				[
 					SNew(STextBlock)
-					.Text(FText::FromString(TEXT("Texture Visualizer")))
+					.Text(FText::FromString(TEXT("Textures")))
 					.Font(SectionTitleFont)
 					.ColorAndOpacity(FSlateColor(FLinearColor(0.85f, 0.92f, 1.0f)))
 				]
@@ -128,7 +128,7 @@ void STextureFrameDebuggerUI::Construct(const FArguments& InArgs)
 					+ SUniformGridPanel::Slot(1, 0)
 					[
 						SNew(SSearchBox)
-						.OnTextChanged(this, &STextureFrameDebuggerUI::OnTextureFilterChanged)
+						.OnTextChanged(this, &SFrameRenderInspectorUI::OnTextureFilterChanged)
 					]
 					+ SUniformGridPanel::Slot(0, 1)
 					[
@@ -140,11 +140,11 @@ void STextureFrameDebuggerUI::Construct(const FArguments& InArgs)
 					[
 						SAssignNew(TextureComboBox, SComboBox<TSharedPtr<FString>>)
 						.OptionsSource(&FilteredTextureOptions)
-						.OnGenerateWidget(this, &STextureFrameDebuggerUI::GenerateTextureOptionWidget)
-						.OnSelectionChanged(this, &STextureFrameDebuggerUI::OnTextureSelectionChanged)
+						.OnGenerateWidget(this, &SFrameRenderInspectorUI::GenerateTextureOptionWidget)
+						.OnSelectionChanged(this, &SFrameRenderInspectorUI::OnTextureSelectionChanged)
 						[
 							SNew(STextBlock)
-							.Text(this, &STextureFrameDebuggerUI::GetSelectedTextureText)
+							.Text(this, &SFrameRenderInspectorUI::GetSelectedTextureText)
 							.Font(ControlFont)
 						]
 					]
@@ -162,14 +162,14 @@ void STextureFrameDebuggerUI::Construct(const FArguments& InArgs)
 						[
 							SNew(SSlider)
 							.Value(OverlayOpacity)
-							.OnValueChanged(this, &STextureFrameDebuggerUI::OnOverlayOpacitySliderChanged)
+							.OnValueChanged(this, &SFrameRenderInspectorUI::OnOverlayOpacitySliderChanged)
 						]
 						+ SVerticalBox::Slot()
 						.AutoHeight()
 						.Padding(0.0f, 2.0f, 0.0f, 0.0f)
 						[
 							SNew(STextBlock)
-							.Text(this, &STextureFrameDebuggerUI::GetOverlayOpacityText)
+							.Text(this, &SFrameRenderInspectorUI::GetOverlayOpacityText)
 							.Font(ControlFont)
 						]
 					]
@@ -187,14 +187,14 @@ void STextureFrameDebuggerUI::Construct(const FArguments& InArgs)
 						[
 							SNew(SSlider)
 							.Value(OverlayCoverage)
-							.OnValueChanged(this, &STextureFrameDebuggerUI::OnOverlayCoverageSliderChanged)
+							.OnValueChanged(this, &SFrameRenderInspectorUI::OnOverlayCoverageSliderChanged)
 						]
 						+ SVerticalBox::Slot()
 						.AutoHeight()
 						.Padding(0.0f, 2.0f, 0.0f, 0.0f)
 						[
 							SNew(STextBlock)
-							.Text(this, &STextureFrameDebuggerUI::GetOverlayCoverageText)
+							.Text(this, &SFrameRenderInspectorUI::GetOverlayCoverageText)
 							.Font(ControlFont)
 						]
 					]
@@ -226,8 +226,8 @@ void STextureFrameDebuggerUI::Construct(const FArguments& InArgs)
 							.Padding(0.0f, 0.0f, 10.0f, 0.0f)
 							[
 								SNew(SEditableTextBox)
-								.Text(this, &STextureFrameDebuggerUI::GetRangeMinText)
-								.OnTextCommitted(this, &STextureFrameDebuggerUI::OnRangeMinTextCommitted)
+								.Text(this, &SFrameRenderInspectorUI::GetRangeMinText)
+								.OnTextCommitted(this, &SFrameRenderInspectorUI::OnRangeMinTextCommitted)
 								.Font(ControlFont)
 							]
 						]
@@ -248,8 +248,8 @@ void STextureFrameDebuggerUI::Construct(const FArguments& InArgs)
 							.FillWidth(1.0f)
 							[
 								SNew(SEditableTextBox)
-								.Text(this, &STextureFrameDebuggerUI::GetRangeMaxText)
-								.OnTextCommitted(this, &STextureFrameDebuggerUI::OnRangeMaxTextCommitted)
+								.Text(this, &SFrameRenderInspectorUI::GetRangeMaxText)
+								.OnTextCommitted(this, &SFrameRenderInspectorUI::OnRangeMaxTextCommitted)
 								.Font(ControlFont)
 							]
 						]
@@ -269,15 +269,15 @@ void STextureFrameDebuggerUI::Construct(const FArguments& InArgs)
 						[
 							SNew(SButton)
 							.Text(FText::FromString(TEXT("Compute Visible Range")))
-							.OnClicked(this, &STextureFrameDebuggerUI::OnComputeVisibleRangeClicked)
+							.OnClicked(this, &SFrameRenderInspectorUI::OnComputeVisibleRangeClicked)
 						]
 						+ SHorizontalBox::Slot()
 						.AutoWidth()
 						.VAlign(VAlign_Center)
 						[
 							SNew(SCheckBox)
-							.IsChecked(this, &STextureFrameDebuggerUI::GetRangeLockCheckState)
-							.OnCheckStateChanged(this, &STextureFrameDebuggerUI::OnRangeLockCheckStateChanged)
+							.IsChecked(this, &SFrameRenderInspectorUI::GetRangeLockCheckState)
+							.OnCheckStateChanged(this, &SFrameRenderInspectorUI::OnRangeLockCheckStateChanged)
 							[
 								SNew(STextBlock)
 								.Text(FText::FromString(TEXT("Lock Range")))
@@ -297,7 +297,7 @@ void STextureFrameDebuggerUI::Construct(const FArguments& InArgs)
 				.Padding(0.0f, 0.0f, 0.0f, 10.0f)
 				[
 					SNew(STextBlock)
-					.Text(FText::FromString(TEXT("Visualize Buffer")))
+					.Text(FText::FromString(TEXT("Buffers")))
 					.Font(SectionTitleFont)
 					.ColorAndOpacity(FSlateColor(FLinearColor(1.0f, 0.84f, 0.45f)))
 				]
@@ -316,23 +316,23 @@ void STextureFrameDebuggerUI::Construct(const FArguments& InArgs)
 					+ SUniformGridPanel::Slot(1, 0)
 					[
 						SNew(SSearchBox)
-						.OnTextChanged(this, &STextureFrameDebuggerUI::OnBufferFilterChanged)
+						.OnTextChanged(this, &SFrameRenderInspectorUI::OnBufferFilterChanged)
 					]
 					+ SUniformGridPanel::Slot(0, 1)
 					[
 						SNew(STextBlock)
-						.Text(FText::FromString(TEXT("Visualize Buffer")))
+						.Text(FText::FromString(TEXT("Buffer")))
 						.Font(ControlFont)
 					]
 					+ SUniformGridPanel::Slot(1, 1)
 					[
 						SAssignNew(BufferComboBox, SComboBox<TSharedPtr<FBufferDebuggerItem>>)
 						.OptionsSource(&FilteredBufferOptions)
-						.OnGenerateWidget(this, &STextureFrameDebuggerUI::GenerateBufferOptionWidget)
-						.OnSelectionChanged(this, &STextureFrameDebuggerUI::OnBufferSelectionChanged)
+						.OnGenerateWidget(this, &SFrameRenderInspectorUI::GenerateBufferOptionWidget)
+						.OnSelectionChanged(this, &SFrameRenderInspectorUI::OnBufferSelectionChanged)
 						[
 							SNew(STextBlock)
-							.Text(this, &STextureFrameDebuggerUI::GetSelectedBufferText)
+							.Text(this, &SFrameRenderInspectorUI::GetSelectedBufferText)
 							.Font(ControlFont)
 						]
 					]
@@ -345,7 +345,7 @@ void STextureFrameDebuggerUI::Construct(const FArguments& InArgs)
 					+ SUniformGridPanel::Slot(1, 2)
 					[
 						SNew(STextBlock)
-						.Text(this, &STextureFrameDebuggerUI::GetBufferStrideText)
+						.Text(this, &SFrameRenderInspectorUI::GetBufferStrideText)
 						.Font(ControlFont)
 					]
 					+ SUniformGridPanel::Slot(0, 3)
@@ -357,7 +357,7 @@ void STextureFrameDebuggerUI::Construct(const FArguments& InArgs)
 					+ SUniformGridPanel::Slot(1, 3)
 					[
 						SNew(STextBlock)
-						.Text(this, &STextureFrameDebuggerUI::GetBufferCountText)
+						.Text(this, &SFrameRenderInspectorUI::GetBufferCountText)
 						.Font(ControlFont)
 					]
 					+ SUniformGridPanel::Slot(0, 4)
@@ -374,8 +374,8 @@ void STextureFrameDebuggerUI::Construct(const FArguments& InArgs)
 						.Padding(0.0f, 0.0f, 6.0f, 0.0f)
 						[
 							SNew(SEditableTextBox)
-							.Text(this, &STextureFrameDebuggerUI::GetRowsText)
-							.OnTextCommitted(this, &STextureFrameDebuggerUI::OnRowsTextCommitted)
+							.Text(this, &SFrameRenderInspectorUI::GetRowsText)
+							.OnTextCommitted(this, &SFrameRenderInspectorUI::OnRowsTextCommitted)
 							.Font(ControlFont)
 						]
 						+ SHorizontalBox::Slot()
@@ -391,8 +391,8 @@ void STextureFrameDebuggerUI::Construct(const FArguments& InArgs)
 						.FillWidth(1.0f)
 						[
 							SNew(SEditableTextBox)
-							.Text(this, &STextureFrameDebuggerUI::GetColumnsText)
-							.OnTextCommitted(this, &STextureFrameDebuggerUI::OnColumnsTextCommitted)
+							.Text(this, &SFrameRenderInspectorUI::GetColumnsText)
+							.OnTextCommitted(this, &SFrameRenderInspectorUI::OnColumnsTextCommitted)
 							.Font(ControlFont)
 						]
 					]
@@ -406,8 +406,8 @@ void STextureFrameDebuggerUI::Construct(const FArguments& InArgs)
 					[
 						SAssignNew(BufferFormatComboBox, SComboBox<TSharedPtr<FString>>)
 						.OptionsSource(&BufferFormatOptions)
-						.OnGenerateWidget(this, &STextureFrameDebuggerUI::GenerateBufferFormatOptionWidget)
-						.OnSelectionChanged(this, &STextureFrameDebuggerUI::OnBufferFormatSelectionChanged)
+						.OnGenerateWidget(this, &SFrameRenderInspectorUI::GenerateBufferFormatOptionWidget)
+						.OnSelectionChanged(this, &SFrameRenderInspectorUI::OnBufferFormatSelectionChanged)
 						[
 							SNew(STextBlock)
 							.Text_Lambda([this]() -> FText
@@ -429,19 +429,19 @@ void STextureFrameDebuggerUI::Construct(const FArguments& InArgs)
 						SNew(SHorizontalBox)
 						+ SHorizontalBox::Slot().AutoWidth().Padding(0.0f, 0.0f, 6.0f, 0.0f)
 						[
-							SNew(SButton).Text(FText::FromString(TEXT("Copy"))).OnClicked(this, &STextureFrameDebuggerUI::OnCopyBufferPageClicked)
+							SNew(SButton).Text(FText::FromString(TEXT("Copy"))).OnClicked(this, &SFrameRenderInspectorUI::OnCopyBufferPageClicked)
 						]
 						+ SHorizontalBox::Slot().AutoWidth().Padding(0.0f, 0.0f, 6.0f, 0.0f)
 						[
-							SNew(SButton).Text(FText::FromString(TEXT("<"))).OnClicked(this, &STextureFrameDebuggerUI::OnPreviousBufferPageClicked)
+							SNew(SButton).Text(FText::FromString(TEXT("<"))).OnClicked(this, &SFrameRenderInspectorUI::OnPreviousBufferPageClicked)
 						]
 						+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center).Padding(0.0f, 0.0f, 6.0f, 0.0f)
 						[
-							SNew(STextBlock).Text(this, &STextureFrameDebuggerUI::GetBufferPageText).Font(ControlFont)
+							SNew(STextBlock).Text(this, &SFrameRenderInspectorUI::GetBufferPageText).Font(ControlFont)
 						]
 						+ SHorizontalBox::Slot().AutoWidth().Padding(0.0f, 0.0f, 12.0f, 0.0f)
 						[
-							SNew(SButton).Text(FText::FromString(TEXT(">"))).OnClicked(this, &STextureFrameDebuggerUI::OnNextBufferPageClicked)
+							SNew(SButton).Text(FText::FromString(TEXT(">"))).OnClicked(this, &SFrameRenderInspectorUI::OnNextBufferPageClicked)
 						]
 						+ SHorizontalBox::Slot().AutoWidth().VAlign(VAlign_Center).Padding(0.0f, 0.0f, 6.0f, 0.0f)
 						[
@@ -451,16 +451,16 @@ void STextureFrameDebuggerUI::Construct(const FArguments& InArgs)
 						[
 							SNew(SBox).WidthOverride(110.0f)
 							[
-								SNew(SEditableTextBox).OnTextChanged(this, &STextureFrameDebuggerUI::OnJumpAddressTextChanged).Font(ControlFont)
+								SNew(SEditableTextBox).OnTextChanged(this, &SFrameRenderInspectorUI::OnJumpAddressTextChanged).Font(ControlFont)
 							]
 						]
 						+ SHorizontalBox::Slot().AutoWidth().Padding(0.0f, 0.0f, 12.0f, 0.0f)
 						[
-							SNew(SButton).Text(FText::FromString(TEXT("Go"))).OnClicked(this, &STextureFrameDebuggerUI::OnGoToBufferAddressClicked)
+							SNew(SButton).Text(FText::FromString(TEXT("Go"))).OnClicked(this, &SFrameRenderInspectorUI::OnGoToBufferAddressClicked)
 						]
 						+ SHorizontalBox::Slot().AutoWidth()
 						[
-							SNew(SButton).Text(FText::FromString(TEXT("Refresh"))).OnClicked(this, &STextureFrameDebuggerUI::OnRefreshBufferClicked)
+							SNew(SButton).Text(FText::FromString(TEXT("Refresh"))).OnClicked(this, &SFrameRenderInspectorUI::OnRefreshBufferClicked)
 						]
 					]
 					+ SVerticalBox::Slot()
@@ -476,16 +476,16 @@ void STextureFrameDebuggerUI::Construct(const FArguments& InArgs)
 						[
 							SNew(SBox).WidthOverride(140.0f)
 							[
-								SNew(SEditableTextBox).OnTextChanged(this, &STextureFrameDebuggerUI::OnSearchValueTextChanged).Font(ControlFont)
+								SNew(SEditableTextBox).OnTextChanged(this, &SFrameRenderInspectorUI::OnSearchValueTextChanged).Font(ControlFont)
 							]
 						]
 						+ SHorizontalBox::Slot().AutoWidth().Padding(0.0f, 0.0f, 6.0f, 0.0f)
 						[
-							SNew(SButton).Text(FText::FromString(TEXT("Find"))).OnClicked(this, &STextureFrameDebuggerUI::OnSearchBufferClicked)
+							SNew(SButton).Text(FText::FromString(TEXT("Find"))).OnClicked(this, &SFrameRenderInspectorUI::OnSearchBufferClicked)
 						]
 						+ SHorizontalBox::Slot().AutoWidth()
 						[
-							SNew(SButton).Text(FText::FromString(TEXT("Next Match"))).OnClicked(this, &STextureFrameDebuggerUI::OnNextSearchMatchClicked)
+							SNew(SButton).Text(FText::FromString(TEXT("Next Match"))).OnClicked(this, &SFrameRenderInspectorUI::OnNextSearchMatchClicked)
 						]
 					]
 				]
@@ -494,7 +494,7 @@ void STextureFrameDebuggerUI::Construct(const FArguments& InArgs)
 				.Padding(0.0f, 0.0f, 0.0f, 6.0f)
 				[
 					SNew(STextBlock)
-					.Text(this, &STextureFrameDebuggerUI::GetBufferStatusText)
+					.Text(this, &SFrameRenderInspectorUI::GetBufferStatusText)
 					.Font(ControlFont)
 					.ColorAndOpacity(FSlateColor(FLinearColor(0.85f, 0.85f, 0.75f)))
 				]
@@ -503,7 +503,7 @@ void STextureFrameDebuggerUI::Construct(const FArguments& InArgs)
 				[
 					SAssignNew(BufferRowsView, SListView<TSharedPtr<FBufferRowEntry>>)
 					.ListItemsSource(&VisibleBufferRows)
-					.OnGenerateRow(this, &STextureFrameDebuggerUI::OnGenerateBufferRowWidget)
+					.OnGenerateRow(this, &SFrameRenderInspectorUI::OnGenerateBufferRowWidget)
 					.SelectionMode(ESelectionMode::None)
 					.ItemHeight(24.0f)
 				]
@@ -518,7 +518,7 @@ void STextureFrameDebuggerUI::Construct(const FArguments& InArgs)
 				.Padding(0.0f, 0.0f, 0.0f, 10.0f)
 				[
 					SNew(STextBlock)
-					.Text(FText::FromString(TEXT("Options")))
+					.Text(FText::FromString(TEXT("Render Options")))
 					.Font(SectionTitleFont)
 					.ColorAndOpacity(FSlateColor(FLinearColor(0.78f, 0.92f, 0.78f)))
 				]
@@ -542,7 +542,7 @@ void STextureFrameDebuggerUI::Construct(const FArguments& InArgs)
 						.Padding(0.0f, 0.0f, 8.0f, 0.0f)
 						[
 							SNew(SSearchBox)
-							.OnTextChanged(this, &STextureFrameDebuggerUI::OnRenderOptionFilterChanged)
+							.OnTextChanged(this, &SFrameRenderInspectorUI::OnRenderOptionFilterChanged)
 						]
 						+ SHorizontalBox::Slot()
 						.AutoWidth()
@@ -550,7 +550,7 @@ void STextureFrameDebuggerUI::Construct(const FArguments& InArgs)
 						[
 							SNew(SButton)
 							.Text(FText::FromString(TEXT("<")))
-							.OnClicked(this, &STextureFrameDebuggerUI::OnPreviousRenderOptionsPageClicked)
+							.OnClicked(this, &SFrameRenderInspectorUI::OnPreviousRenderOptionsPageClicked)
 						]
 						+ SHorizontalBox::Slot()
 						.AutoWidth()
@@ -558,7 +558,7 @@ void STextureFrameDebuggerUI::Construct(const FArguments& InArgs)
 						.Padding(0.0f, 0.0f, 6.0f, 0.0f)
 						[
 							SNew(STextBlock)
-							.Text(this, &STextureFrameDebuggerUI::GetRenderOptionsPageText)
+							.Text(this, &SFrameRenderInspectorUI::GetRenderOptionsPageText)
 							.Font(ControlFont)
 						]
 						+ SHorizontalBox::Slot()
@@ -566,7 +566,7 @@ void STextureFrameDebuggerUI::Construct(const FArguments& InArgs)
 						[
 							SNew(SButton)
 							.Text(FText::FromString(TEXT(">")))
-							.OnClicked(this, &STextureFrameDebuggerUI::OnNextRenderOptionsPageClicked)
+							.OnClicked(this, &SFrameRenderInspectorUI::OnNextRenderOptionsPageClicked)
 						]
 					]
 				]
@@ -576,7 +576,7 @@ void STextureFrameDebuggerUI::Construct(const FArguments& InArgs)
 				[
 					SAssignNew(RenderOptionsView, SListView<TSharedPtr<FRenderOptionItem>>)
 					.ListItemsSource(&VisibleRenderOptions)
-					.OnGenerateRow(this, &STextureFrameDebuggerUI::OnGenerateRenderOptionRowWidget)
+					.OnGenerateRow(this, &SFrameRenderInspectorUI::OnGenerateRenderOptionRowWidget)
 					.SelectionMode(ESelectionMode::None)
 					.ItemHeight(28.0f)
 				]
@@ -585,7 +585,7 @@ void STextureFrameDebuggerUI::Construct(const FArguments& InArgs)
 	];
 }
 
-void STextureFrameDebuggerUI::UpdateTextureOptions(const TArray<FString>& TextureNames, const FString& SelectedTextureName)
+void SFrameRenderInspectorUI::UpdateTextureOptions(const TArray<FString>& TextureNames, const FString& SelectedTextureName)
 {
 	AllTextureOptions.Empty();
 	for (const FString& TextureName : TextureNames)
@@ -617,7 +617,7 @@ void STextureFrameDebuggerUI::UpdateTextureOptions(const TArray<FString>& Textur
 	}
 }
 
-void STextureFrameDebuggerUI::UpdateBufferOptions(const TArray<FBufferDebuggerItem>& BufferItems, const FString& SelectedBufferName)
+void SFrameRenderInspectorUI::UpdateBufferOptions(const TArray<FBufferDebuggerItem>& BufferItems, const FString& SelectedBufferName)
 {
 	AllBufferOptions.Empty();
 	for (const FBufferDebuggerItem& BufferItem : BufferItems)
@@ -657,7 +657,7 @@ void STextureFrameDebuggerUI::UpdateBufferOptions(const TArray<FBufferDebuggerIt
 	}
 }
 
-void STextureFrameDebuggerUI::UpdateRenderOptions(const TArray<FRenderOptionItem>& RenderOptions)
+void SFrameRenderInspectorUI::UpdateRenderOptions(const TArray<FRenderOptionItem>& RenderOptions)
 {
 	AllRenderOptions.Empty();
 	for (const FRenderOptionItem& RenderOption : RenderOptions)
@@ -668,7 +668,7 @@ void STextureFrameDebuggerUI::UpdateRenderOptions(const TArray<FRenderOptionItem
 	RebuildFilteredRenderOptions();
 }
 
-void STextureFrameDebuggerUI::SetBufferReadbackResult(const FBufferReadbackResult& InReadbackResult)
+void SFrameRenderInspectorUI::SetBufferReadbackResult(const FBufferReadbackResult& InReadbackResult)
 {
 	BufferStride = InReadbackResult.Stride;
 	BufferCount = InReadbackResult.Count;
@@ -680,63 +680,63 @@ void STextureFrameDebuggerUI::SetBufferReadbackResult(const FBufferReadbackResul
 	RebuildBufferRows();
 }
 
-void STextureFrameDebuggerUI::SetOnTextureSelected(FOnTextureSelected InOnTextureSelected)
+void SFrameRenderInspectorUI::SetOnTextureSelected(FOnTextureSelected InOnTextureSelected)
 {
 	OnTextureSelectedDelegate = InOnTextureSelected;
 }
 
-void STextureFrameDebuggerUI::SetOnBufferSelected(FOnBufferSelected InOnBufferSelected)
+void SFrameRenderInspectorUI::SetOnBufferSelected(FOnBufferSelected InOnBufferSelected)
 {
 	OnBufferSelectedDelegate = InOnBufferSelected;
 }
 
-void STextureFrameDebuggerUI::SetOnRefreshBuffer(FOnRefreshBuffer InOnRefreshBuffer)
+void SFrameRenderInspectorUI::SetOnRefreshBuffer(FOnRefreshBuffer InOnRefreshBuffer)
 {
 	OnRefreshBufferDelegate = InOnRefreshBuffer;
 }
 
-void STextureFrameDebuggerUI::SetOnRenderOptionBoolChanged(FOnRenderOptionBoolChanged InOnRenderOptionBoolChanged)
+void SFrameRenderInspectorUI::SetOnRenderOptionBoolChanged(FOnRenderOptionBoolChanged InOnRenderOptionBoolChanged)
 {
 	OnRenderOptionBoolChangedDelegate = InOnRenderOptionBoolChanged;
 }
 
-void STextureFrameDebuggerUI::SetOnRenderOptionValueCommitted(FOnRenderOptionValueCommitted InOnRenderOptionValueCommitted)
+void SFrameRenderInspectorUI::SetOnRenderOptionValueCommitted(FOnRenderOptionValueCommitted InOnRenderOptionValueCommitted)
 {
 	OnRenderOptionValueCommittedDelegate = InOnRenderOptionValueCommitted;
 }
 
-void STextureFrameDebuggerUI::SetOnOverlayOpacityChanged(FOnOverlayOpacityChanged InOnOverlayOpacityChanged)
+void SFrameRenderInspectorUI::SetOnOverlayOpacityChanged(FOnOverlayOpacityChanged InOnOverlayOpacityChanged)
 {
 	OnOverlayOpacityChangedDelegate = InOnOverlayOpacityChanged;
 }
 
-void STextureFrameDebuggerUI::SetOnOverlayCoverageChanged(FOnOverlayCoverageChanged InOnOverlayCoverageChanged)
+void SFrameRenderInspectorUI::SetOnOverlayCoverageChanged(FOnOverlayCoverageChanged InOnOverlayCoverageChanged)
 {
 	OnOverlayCoverageChangedDelegate = InOnOverlayCoverageChanged;
 }
 
-void STextureFrameDebuggerUI::SetOnComputeVisibleRange(FOnComputeVisibleRange InOnComputeVisibleRange)
+void SFrameRenderInspectorUI::SetOnComputeVisibleRange(FOnComputeVisibleRange InOnComputeVisibleRange)
 {
 	OnComputeVisibleRangeDelegate = InOnComputeVisibleRange;
 }
 
-void STextureFrameDebuggerUI::SetOnRangeLockChanged(FOnRangeLockChanged InOnRangeLockChanged)
+void SFrameRenderInspectorUI::SetOnRangeLockChanged(FOnRangeLockChanged InOnRangeLockChanged)
 {
 	OnRangeLockChangedDelegate = InOnRangeLockChanged;
 }
 
-void STextureFrameDebuggerUI::SetOnRangeEdited(FOnRangeEdited InOnRangeEdited)
+void SFrameRenderInspectorUI::SetOnRangeEdited(FOnRangeEdited InOnRangeEdited)
 {
 	OnRangeEditedDelegate = InOnRangeEdited;
 }
 
-void STextureFrameDebuggerUI::SetOverlaySettings(float InOpacity, float InCoverage)
+void SFrameRenderInspectorUI::SetOverlaySettings(float InOpacity, float InCoverage)
 {
 	OverlayOpacity = FMath::Clamp(InOpacity, 0.0f, 1.0f);
 	OverlayCoverage = FMath::Clamp(InCoverage, 0.0f, 1.0f);
 }
 
-void STextureFrameDebuggerUI::SetRangeState(float InMin, float InMax, bool bInHasRange, bool bInRangeLocked)
+void SFrameRenderInspectorUI::SetRangeState(float InMin, float InMax, bool bInHasRange, bool bInRangeLocked)
 {
 	RangeMin = InMin;
 	RangeMax = InMax;
@@ -744,7 +744,7 @@ void STextureFrameDebuggerUI::SetRangeState(float InMin, float InMax, bool bInHa
 	bRangeLocked = bInRangeLocked;
 }
 
-void STextureFrameDebuggerUI::RebuildFilteredOptions()
+void SFrameRenderInspectorUI::RebuildFilteredOptions()
 {
 	FilteredTextureOptions.Empty();
 
@@ -767,7 +767,7 @@ void STextureFrameDebuggerUI::RebuildFilteredOptions()
 	}
 }
 
-void STextureFrameDebuggerUI::RebuildFilteredBufferOptions()
+void SFrameRenderInspectorUI::RebuildFilteredBufferOptions()
 {
 	FilteredBufferOptions.Empty();
 
@@ -790,7 +790,7 @@ void STextureFrameDebuggerUI::RebuildFilteredBufferOptions()
 	}
 }
 
-void STextureFrameDebuggerUI::RebuildBufferRows()
+void SFrameRenderInspectorUI::RebuildBufferRows()
 {
 	VisibleBufferRows.Empty();
 	ClampBufferPage();
@@ -838,7 +838,7 @@ void STextureFrameDebuggerUI::RebuildBufferRows()
 	}
 }
 
-void STextureFrameDebuggerUI::RebuildFilteredRenderOptions()
+void SFrameRenderInspectorUI::RebuildFilteredRenderOptions()
 {
 	FilteredRenderOptions.Empty();
 
@@ -859,7 +859,7 @@ void STextureFrameDebuggerUI::RebuildFilteredRenderOptions()
 	RebuildVisibleRenderOptions();
 }
 
-void STextureFrameDebuggerUI::RebuildVisibleRenderOptions()
+void SFrameRenderInspectorUI::RebuildVisibleRenderOptions()
 {
 	VisibleRenderOptions.Empty();
 	ClampRenderOptionsPage();
@@ -877,28 +877,28 @@ void STextureFrameDebuggerUI::RebuildVisibleRenderOptions()
 	}
 }
 
-TSharedRef<SWidget> STextureFrameDebuggerUI::GenerateTextureOptionWidget(TSharedPtr<FString> Item) const
+TSharedRef<SWidget> SFrameRenderInspectorUI::GenerateTextureOptionWidget(TSharedPtr<FString> Item) const
 {
 	return SNew(STextBlock)
 		.Text(Item.IsValid() ? FText::FromString(*Item) : FText::GetEmpty())
 		.Font(FAppStyle::GetFontStyle("PropertyWindow.BoldFont"));
 }
 
-TSharedRef<SWidget> STextureFrameDebuggerUI::GenerateBufferOptionWidget(TSharedPtr<FBufferDebuggerItem> Item) const
+TSharedRef<SWidget> SFrameRenderInspectorUI::GenerateBufferOptionWidget(TSharedPtr<FBufferDebuggerItem> Item) const
 {
 	return SNew(STextBlock)
 		.Text(Item.IsValid() ? FText::FromString(Item->Name) : FText::GetEmpty())
 		.Font(FAppStyle::GetFontStyle("PropertyWindow.BoldFont"));
 }
 
-TSharedRef<SWidget> STextureFrameDebuggerUI::GenerateBufferFormatOptionWidget(TSharedPtr<FString> Item) const
+TSharedRef<SWidget> SFrameRenderInspectorUI::GenerateBufferFormatOptionWidget(TSharedPtr<FString> Item) const
 {
 	return SNew(STextBlock)
 		.Text(Item.IsValid() ? FText::FromString(*Item) : FText::GetEmpty())
 		.Font(FAppStyle::GetFontStyle("PropertyWindow.BoldFont"));
 }
 
-TSharedRef<ITableRow> STextureFrameDebuggerUI::OnGenerateBufferRowWidget(TSharedPtr<FBufferRowEntry> Item, const TSharedRef<STableViewBase>& OwnerTable)
+TSharedRef<ITableRow> SFrameRenderInspectorUI::OnGenerateBufferRowWidget(TSharedPtr<FBufferRowEntry> Item, const TSharedRef<STableViewBase>& OwnerTable)
 {
 	TSharedRef<SHorizontalBox> RowBox = SNew(SHorizontalBox);
 
@@ -936,7 +936,7 @@ TSharedRef<ITableRow> STextureFrameDebuggerUI::OnGenerateBufferRowWidget(TShared
 	return SNew(STableRow<TSharedPtr<FBufferRowEntry>>, OwnerTable)[RowBox];
 }
 
-TSharedRef<ITableRow> STextureFrameDebuggerUI::OnGenerateRenderOptionRowWidget(TSharedPtr<FRenderOptionItem> Item, const TSharedRef<STableViewBase>& OwnerTable)
+TSharedRef<ITableRow> SFrameRenderInspectorUI::OnGenerateRenderOptionRowWidget(TSharedPtr<FRenderOptionItem> Item, const TSharedRef<STableViewBase>& OwnerTable)
 {
 	TSharedRef<SHorizontalBox> RowBox = SNew(SHorizontalBox);
 
@@ -1007,7 +1007,7 @@ TSharedRef<ITableRow> STextureFrameDebuggerUI::OnGenerateRenderOptionRowWidget(T
 	return SNew(STableRow<TSharedPtr<FRenderOptionItem>>, OwnerTable)[RowBox];
 }
 
-void STextureFrameDebuggerUI::OnTextureSelectionChanged(TSharedPtr<FString> Item, ESelectInfo::Type SelectInfo)
+void SFrameRenderInspectorUI::OnTextureSelectionChanged(TSharedPtr<FString> Item, ESelectInfo::Type SelectInfo)
 {
 	SelectedTextureOption = Item;
 
@@ -1017,7 +1017,7 @@ void STextureFrameDebuggerUI::OnTextureSelectionChanged(TSharedPtr<FString> Item
 	}
 }
 
-void STextureFrameDebuggerUI::OnTextureFilterChanged(const FText& InFilterText)
+void SFrameRenderInspectorUI::OnTextureFilterChanged(const FText& InFilterText)
 {
 	SearchText = InFilterText.ToString();
 	RebuildFilteredOptions();
@@ -1034,7 +1034,7 @@ void STextureFrameDebuggerUI::OnTextureFilterChanged(const FText& InFilterText)
 	}
 }
 
-void STextureFrameDebuggerUI::OnBufferSelectionChanged(TSharedPtr<FBufferDebuggerItem> Item, ESelectInfo::Type SelectInfo)
+void SFrameRenderInspectorUI::OnBufferSelectionChanged(TSharedPtr<FBufferDebuggerItem> Item, ESelectInfo::Type SelectInfo)
 {
 	SelectedBufferOption = Item;
 
@@ -1068,7 +1068,7 @@ void STextureFrameDebuggerUI::OnBufferSelectionChanged(TSharedPtr<FBufferDebugge
 	RebuildBufferRows();
 }
 
-void STextureFrameDebuggerUI::OnBufferFilterChanged(const FText& InFilterText)
+void SFrameRenderInspectorUI::OnBufferFilterChanged(const FText& InFilterText)
 {
 	BufferFilterText = InFilterText.ToString();
 	RebuildFilteredBufferOptions();
@@ -1087,13 +1087,13 @@ void STextureFrameDebuggerUI::OnBufferFilterChanged(const FText& InFilterText)
 	}
 }
 
-void STextureFrameDebuggerUI::OnRenderOptionFilterChanged(const FText& InFilterText)
+void SFrameRenderInspectorUI::OnRenderOptionFilterChanged(const FText& InFilterText)
 {
 	RenderOptionFilterText = InFilterText.ToString();
 	RebuildFilteredRenderOptions();
 }
 
-void STextureFrameDebuggerUI::OnBufferFormatSelectionChanged(TSharedPtr<FString> Item, ESelectInfo::Type SelectInfo)
+void SFrameRenderInspectorUI::OnBufferFormatSelectionChanged(TSharedPtr<FString> Item, ESelectInfo::Type SelectInfo)
 {
 	SelectedBufferFormatOption = Item;
 	if (!Item.IsValid())
@@ -1122,7 +1122,7 @@ void STextureFrameDebuggerUI::OnBufferFormatSelectionChanged(TSharedPtr<FString>
 	RebuildBufferRows();
 }
 
-void STextureFrameDebuggerUI::OnOverlayOpacitySliderChanged(float NewValue)
+void SFrameRenderInspectorUI::OnOverlayOpacitySliderChanged(float NewValue)
 {
 	OverlayOpacity = FMath::Clamp(NewValue, 0.0f, 1.0f);
 
@@ -1132,7 +1132,7 @@ void STextureFrameDebuggerUI::OnOverlayOpacitySliderChanged(float NewValue)
 	}
 }
 
-void STextureFrameDebuggerUI::OnOverlayCoverageSliderChanged(float NewValue)
+void SFrameRenderInspectorUI::OnOverlayCoverageSliderChanged(float NewValue)
 {
 	OverlayCoverage = FMath::Clamp(NewValue, 0.0f, 1.0f);
 
@@ -1142,7 +1142,7 @@ void STextureFrameDebuggerUI::OnOverlayCoverageSliderChanged(float NewValue)
 	}
 }
 
-FReply STextureFrameDebuggerUI::OnComputeVisibleRangeClicked()
+FReply SFrameRenderInspectorUI::OnComputeVisibleRangeClicked()
 {
 	if (OnComputeVisibleRangeDelegate.IsBound())
 	{
@@ -1152,7 +1152,7 @@ FReply STextureFrameDebuggerUI::OnComputeVisibleRangeClicked()
 	return FReply::Handled();
 }
 
-FReply STextureFrameDebuggerUI::OnRefreshBufferClicked()
+FReply SFrameRenderInspectorUI::OnRefreshBufferClicked()
 {
 	if (OnRefreshBufferDelegate.IsBound())
 	{
@@ -1163,7 +1163,7 @@ FReply STextureFrameDebuggerUI::OnRefreshBufferClicked()
 	return FReply::Handled();
 }
 
-FReply STextureFrameDebuggerUI::OnCopyBufferPageClicked()
+FReply SFrameRenderInspectorUI::OnCopyBufferPageClicked()
 {
 	if (BufferData.Num() == 0)
 	{
@@ -1204,21 +1204,21 @@ FReply STextureFrameDebuggerUI::OnCopyBufferPageClicked()
 	return FReply::Handled();
 }
 
-FReply STextureFrameDebuggerUI::OnPreviousBufferPageClicked()
+FReply SFrameRenderInspectorUI::OnPreviousBufferPageClicked()
 {
 	CurrentBufferPage = FMath::Max(CurrentBufferPage - 1, 0);
 	RebuildBufferRows();
 	return FReply::Handled();
 }
 
-FReply STextureFrameDebuggerUI::OnNextBufferPageClicked()
+FReply SFrameRenderInspectorUI::OnNextBufferPageClicked()
 {
 	CurrentBufferPage = FMath::Min(CurrentBufferPage + 1, GetBufferPageCount() - 1);
 	RebuildBufferRows();
 	return FReply::Handled();
 }
 
-FReply STextureFrameDebuggerUI::OnGoToBufferAddressClicked()
+FReply SFrameRenderInspectorUI::OnGoToBufferAddressClicked()
 {
 	uint32 Address = 0;
 	if (!TryParseAddress(JumpAddressText, Address))
@@ -1231,7 +1231,7 @@ FReply STextureFrameDebuggerUI::OnGoToBufferAddressClicked()
 	return FReply::Handled();
 }
 
-FReply STextureFrameDebuggerUI::OnSearchBufferClicked()
+FReply SFrameRenderInspectorUI::OnSearchBufferClicked()
 {
 	RebuildSearchMatches();
 	if (SearchMatchIndices.Num() == 0)
@@ -1246,7 +1246,7 @@ FReply STextureFrameDebuggerUI::OnSearchBufferClicked()
 	return FReply::Handled();
 }
 
-FReply STextureFrameDebuggerUI::OnNextSearchMatchClicked()
+FReply SFrameRenderInspectorUI::OnNextSearchMatchClicked()
 {
 	if (SearchMatchIndices.Num() == 0)
 	{
@@ -1260,21 +1260,21 @@ FReply STextureFrameDebuggerUI::OnNextSearchMatchClicked()
 	return FReply::Handled();
 }
 
-FReply STextureFrameDebuggerUI::OnPreviousRenderOptionsPageClicked()
+FReply SFrameRenderInspectorUI::OnPreviousRenderOptionsPageClicked()
 {
 	CurrentRenderOptionsPage = FMath::Max(CurrentRenderOptionsPage - 1, 0);
 	RebuildVisibleRenderOptions();
 	return FReply::Handled();
 }
 
-FReply STextureFrameDebuggerUI::OnNextRenderOptionsPageClicked()
+FReply SFrameRenderInspectorUI::OnNextRenderOptionsPageClicked()
 {
 	CurrentRenderOptionsPage = FMath::Min(CurrentRenderOptionsPage + 1, GetRenderOptionsPageCount() - 1);
 	RebuildVisibleRenderOptions();
 	return FReply::Handled();
 }
 
-void STextureFrameDebuggerUI::OnRowsTextCommitted(const FText& NewText, ETextCommit::Type CommitType)
+void SFrameRenderInspectorUI::OnRowsTextCommitted(const FText& NewText, ETextCommit::Type CommitType)
 {
 	int32 ParsedValue = 0;
 	if (TryParseIntegerLiteral(NewText.ToString(), ParsedValue))
@@ -1285,7 +1285,7 @@ void STextureFrameDebuggerUI::OnRowsTextCommitted(const FText& NewText, ETextCom
 	}
 }
 
-void STextureFrameDebuggerUI::OnColumnsTextCommitted(const FText& NewText, ETextCommit::Type CommitType)
+void SFrameRenderInspectorUI::OnColumnsTextCommitted(const FText& NewText, ETextCommit::Type CommitType)
 {
 	int32 ParsedValue = 0;
 	if (TryParseIntegerLiteral(NewText.ToString(), ParsedValue))
@@ -1296,17 +1296,17 @@ void STextureFrameDebuggerUI::OnColumnsTextCommitted(const FText& NewText, EText
 	}
 }
 
-void STextureFrameDebuggerUI::OnJumpAddressTextChanged(const FText& NewText)
+void SFrameRenderInspectorUI::OnJumpAddressTextChanged(const FText& NewText)
 {
 	JumpAddressText = NewText.ToString();
 }
 
-void STextureFrameDebuggerUI::OnSearchValueTextChanged(const FText& NewText)
+void SFrameRenderInspectorUI::OnSearchValueTextChanged(const FText& NewText)
 {
 	SearchValueText = NewText.ToString();
 }
 
-void STextureFrameDebuggerUI::OnRangeLockCheckStateChanged(ECheckBoxState NewState)
+void SFrameRenderInspectorUI::OnRangeLockCheckStateChanged(ECheckBoxState NewState)
 {
 	bRangeLocked = (NewState == ECheckBoxState::Checked);
 
@@ -1316,7 +1316,7 @@ void STextureFrameDebuggerUI::OnRangeLockCheckStateChanged(ECheckBoxState NewSta
 	}
 }
 
-void STextureFrameDebuggerUI::OnRangeMinTextCommitted(const FText& NewText, ETextCommit::Type CommitType)
+void SFrameRenderInspectorUI::OnRangeMinTextCommitted(const FText& NewText, ETextCommit::Type CommitType)
 {
 	double ParsedValue = 0.0;
 	if (LexTryParseString(ParsedValue, *NewText.ToString()))
@@ -1327,7 +1327,7 @@ void STextureFrameDebuggerUI::OnRangeMinTextCommitted(const FText& NewText, ETex
 	}
 }
 
-void STextureFrameDebuggerUI::OnRangeMaxTextCommitted(const FText& NewText, ETextCommit::Type CommitType)
+void SFrameRenderInspectorUI::OnRangeMaxTextCommitted(const FText& NewText, ETextCommit::Type CommitType)
 {
 	double ParsedValue = 0.0;
 	if (LexTryParseString(ParsedValue, *NewText.ToString()))
@@ -1338,7 +1338,7 @@ void STextureFrameDebuggerUI::OnRangeMaxTextCommitted(const FText& NewText, ETex
 	}
 }
 
-void STextureFrameDebuggerUI::BroadcastRangeEdited()
+void SFrameRenderInspectorUI::BroadcastRangeEdited()
 {
 	if (OnRangeEditedDelegate.IsBound())
 	{
@@ -1346,102 +1346,102 @@ void STextureFrameDebuggerUI::BroadcastRangeEdited()
 	}
 }
 
-FText STextureFrameDebuggerUI::GetSelectedTextureText() const
+FText SFrameRenderInspectorUI::GetSelectedTextureText() const
 {
 	return SelectedTextureOption.IsValid() ? FText::FromString(*SelectedTextureOption) : FText::FromString(TEXT("Select Texture"));
 }
 
-FText STextureFrameDebuggerUI::GetSelectedBufferText() const
+FText SFrameRenderInspectorUI::GetSelectedBufferText() const
 {
 	return SelectedBufferOption.IsValid() ? FText::FromString(SelectedBufferOption->Name) : FText::FromString(TEXT("Select Buffer"));
 }
 
-FText STextureFrameDebuggerUI::GetBufferStrideText() const
+FText SFrameRenderInspectorUI::GetBufferStrideText() const
 {
 	return FText::FromString(BufferStride > 0 ? FString::Printf(TEXT("%u"), BufferStride) : TEXT("N/A"));
 }
 
-FText STextureFrameDebuggerUI::GetBufferCountText() const
+FText SFrameRenderInspectorUI::GetBufferCountText() const
 {
 	return FText::FromString(BufferCount > 0 ? FString::Printf(TEXT("%u"), BufferCount) : TEXT("N/A"));
 }
 
-FText STextureFrameDebuggerUI::GetBufferPageText() const
+FText SFrameRenderInspectorUI::GetBufferPageText() const
 {
 	const int32 PageCount = GetBufferPageCount();
 	const int32 CurrentPage = PageCount > 0 ? CurrentBufferPage + 1 : 0;
 	return FText::FromString(FString::Printf(TEXT("Page %d/%d"), CurrentPage, PageCount));
 }
 
-FText STextureFrameDebuggerUI::GetBufferStatusText() const
+FText SFrameRenderInspectorUI::GetBufferStatusText() const
 {
 	return FText::FromString(BufferStatusMessage);
 }
 
-FText STextureFrameDebuggerUI::GetRowsText() const
+FText SFrameRenderInspectorUI::GetRowsText() const
 {
 	return FText::AsNumber(BufferRows);
 }
 
-FText STextureFrameDebuggerUI::GetColumnsText() const
+FText SFrameRenderInspectorUI::GetColumnsText() const
 {
 	return FText::AsNumber(BufferColumns);
 }
 
-FText STextureFrameDebuggerUI::GetRenderOptionsPageText() const
+FText SFrameRenderInspectorUI::GetRenderOptionsPageText() const
 {
 	const int32 PageCount = GetRenderOptionsPageCount();
 	const int32 CurrentPage = PageCount > 0 ? CurrentRenderOptionsPage + 1 : 0;
 	return FText::FromString(FString::Printf(TEXT("Page %d/%d"), CurrentPage, PageCount));
 }
 
-FText STextureFrameDebuggerUI::GetOverlayOpacityText() const
+FText SFrameRenderInspectorUI::GetOverlayOpacityText() const
 {
 	return FText::FromString(FString::Printf(TEXT("%.2f"), OverlayOpacity));
 }
 
-FText STextureFrameDebuggerUI::GetOverlayCoverageText() const
+FText SFrameRenderInspectorUI::GetOverlayCoverageText() const
 {
 	return FText::FromString(FString::Printf(TEXT("%.2f"), OverlayCoverage));
 }
 
-FText STextureFrameDebuggerUI::GetRangeMinText() const
+FText SFrameRenderInspectorUI::GetRangeMinText() const
 {
 	return bHasRange ? FText::FromString(FString::Printf(TEXT("%g"), RangeMin)) : FText::FromString(TEXT("N/A"));
 }
 
-FText STextureFrameDebuggerUI::GetRangeMaxText() const
+FText SFrameRenderInspectorUI::GetRangeMaxText() const
 {
 	return bHasRange ? FText::FromString(FString::Printf(TEXT("%g"), RangeMax)) : FText::FromString(TEXT("N/A"));
 }
 
-ECheckBoxState STextureFrameDebuggerUI::GetRangeLockCheckState() const
+ECheckBoxState SFrameRenderInspectorUI::GetRangeLockCheckState() const
 {
 	return bRangeLocked ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
 }
 
-int32 STextureFrameDebuggerUI::GetBufferWordCount() const
+int32 SFrameRenderInspectorUI::GetBufferWordCount() const
 {
 	return BufferData.Num() / static_cast<int32>(sizeof(uint32));
 }
 
-int32 STextureFrameDebuggerUI::GetBufferPageCount() const
+int32 SFrameRenderInspectorUI::GetBufferPageCount() const
 {
 	const int32 CellsPerPage = GetBufferCellsPerPage();
 	return CellsPerPage > 0 ? FMath::Max(1, FMath::DivideAndRoundUp(GetBufferWordCount(), CellsPerPage)) : 1;
 }
 
-int32 STextureFrameDebuggerUI::GetBufferCellsPerPage() const
+int32 SFrameRenderInspectorUI::GetBufferCellsPerPage() const
 {
 	return FMath::Max(BufferRows, 1) * FMath::Max(BufferColumns, 1);
 }
 
-void STextureFrameDebuggerUI::ClampBufferPage()
+void SFrameRenderInspectorUI::ClampBufferPage()
 {
 	CurrentBufferPage = FMath::Clamp(CurrentBufferPage, 0, GetBufferPageCount() - 1);
 }
 
-FString STextureFrameDebuggerUI::FormatBufferValue(int32 ElementIndex) const
+FString SFrameRenderInspectorUI::FormatBufferValue(int32 ElementIndex) const
 {
 	uint32 RawValue = 0;
 	if (!TryGetBufferWord(ElementIndex, RawValue))
@@ -1467,7 +1467,7 @@ FString STextureFrameDebuggerUI::FormatBufferValue(int32 ElementIndex) const
 	}
 }
 
-FString STextureFrameDebuggerUI::BuildBufferValueTooltip(int32 ElementIndex) const
+FString SFrameRenderInspectorUI::BuildBufferValueTooltip(int32 ElementIndex) const
 {
 	uint32 RawValue = 0;
 	if (!TryGetBufferWord(ElementIndex, RawValue))
@@ -1488,17 +1488,17 @@ FString STextureFrameDebuggerUI::BuildBufferValueTooltip(int32 ElementIndex) con
 		*FormatBinary(RawValue));
 }
 
-FText STextureFrameDebuggerUI::GetBufferValueText(int32 ElementIndex) const
+FText SFrameRenderInspectorUI::GetBufferValueText(int32 ElementIndex) const
 {
 	return FText::FromString(FormatBufferValue(ElementIndex));
 }
 
-FLinearColor STextureFrameDebuggerUI::GetBufferValueColor(int32 ElementIndex) const
+FLinearColor SFrameRenderInspectorUI::GetBufferValueColor(int32 ElementIndex) const
 {
 	return SearchMatchIndices.Contains(ElementIndex) ? FLinearColor(1.0f, 0.87f, 0.25f) : FLinearColor(0.2f, 0.9f, 0.25f);
 }
 
-bool STextureFrameDebuggerUI::TryGetBufferWord(int32 ElementIndex, uint32& OutValue) const
+bool SFrameRenderInspectorUI::TryGetBufferWord(int32 ElementIndex, uint32& OutValue) const
 {
 	const int32 ByteOffset = ElementIndex * static_cast<int32>(sizeof(uint32));
 	if (!BufferData.IsValidIndex(ByteOffset + 3))
@@ -1510,12 +1510,12 @@ bool STextureFrameDebuggerUI::TryGetBufferWord(int32 ElementIndex, uint32& OutVa
 	return true;
 }
 
-bool STextureFrameDebuggerUI::TryParseAddress(const FString& InText, uint32& OutAddress) const
+bool SFrameRenderInspectorUI::TryParseAddress(const FString& InText, uint32& OutAddress) const
 {
 	return TryParseIntegerLiteral(InText, OutAddress);
 }
 
-bool STextureFrameDebuggerUI::TryParseSearchWord(const FString& InText, uint32& OutValue) const
+bool SFrameRenderInspectorUI::TryParseSearchWord(const FString& InText, uint32& OutValue) const
 {
 	switch (BufferDisplayFormat)
 	{
@@ -1548,7 +1548,7 @@ bool STextureFrameDebuggerUI::TryParseSearchWord(const FString& InText, uint32& 
 	}
 }
 
-void STextureFrameDebuggerUI::RebuildSearchMatches()
+void SFrameRenderInspectorUI::RebuildSearchMatches()
 {
 	SearchMatchIndices.Empty();
 	CurrentSearchMatchCursor = INDEX_NONE;
@@ -1569,7 +1569,7 @@ void STextureFrameDebuggerUI::RebuildSearchMatches()
 	}
 }
 
-void STextureFrameDebuggerUI::JumpToElementIndex(int32 ElementIndex)
+void SFrameRenderInspectorUI::JumpToElementIndex(int32 ElementIndex)
 {
 	const int32 CellsPerPage = GetBufferCellsPerPage();
 	if (CellsPerPage <= 0)
@@ -1583,12 +1583,12 @@ void STextureFrameDebuggerUI::JumpToElementIndex(int32 ElementIndex)
 	RebuildBufferRows();
 }
 
-int32 STextureFrameDebuggerUI::GetRenderOptionsPageCount() const
+int32 SFrameRenderInspectorUI::GetRenderOptionsPageCount() const
 {
 	return RenderOptionsPerPage > 0 ? FMath::Max(1, FMath::DivideAndRoundUp(FilteredRenderOptions.Num(), RenderOptionsPerPage)) : 1;
 }
 
-void STextureFrameDebuggerUI::ClampRenderOptionsPage()
+void SFrameRenderInspectorUI::ClampRenderOptionsPage()
 {
 	CurrentRenderOptionsPage = FMath::Clamp(CurrentRenderOptionsPage, 0, GetRenderOptionsPageCount() - 1);
 }

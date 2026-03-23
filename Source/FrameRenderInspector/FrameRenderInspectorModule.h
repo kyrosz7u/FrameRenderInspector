@@ -2,10 +2,10 @@
 
 #include "CoreMinimal.h"
 #include "Modules/ModuleManager.h"
-#include "TextureFrameDebuggerTypes.h"
-#include "TextureFrameCollector.h"
+#include "FrameRenderInspectorTypes.h"
+#include "FrameRenderInspectorCollector.h"
 
-class FTextureFrameDebuggerModule : public IModuleInterface
+class FFrameRenderInspectorModule : public IModuleInterface
 {
 public:
 	/** IModuleInterface implementation */
@@ -34,12 +34,15 @@ public:
 	void OnRangeEdited(float NewMin, float NewMax);
 
 	// Accessor for the collector
-	TSharedPtr<class FTextureFrameCollector> GetCollector() { return Collector; }
+	TSharedPtr<class FFrameRenderInspectorCollector> GetCollector() { return Collector; }
 
 private:
-	TSharedPtr<class STextureFrameDebuggerUI> DebuggerUI;
+	void RegisterMenus();
+	void UnregisterMenus();
+
+	TSharedPtr<class SFrameRenderInspectorUI> DebuggerUI;
 	TSharedPtr<class SDockTab> DebuggerTab;
-	TSharedPtr<class FTextureFrameCollector> Collector;
+	TSharedPtr<class FFrameRenderInspectorCollector> Collector;
 	TArray<FString> CachedTextureNames;
 	TArray<FBufferDebuggerItem> CachedBufferItems;
 	TArray<FRenderOptionItem> CachedRenderOptions;

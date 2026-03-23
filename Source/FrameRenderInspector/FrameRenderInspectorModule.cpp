@@ -1,33 +1,37 @@
-#include "TextureFrameDebuggerModule.h"
-#include "STextureFrameDebuggerUI.h"
-#include "TextureFrameCollector.h"
+#include "FrameRenderInspectorModule.h"
+#include "SFrameRenderInspectorUI.h"
+#include "FrameRenderInspectorCollector.h"
 #include "Engine/Engine.h"
 #include "Interfaces/IPluginManager.h"
 #include "HAL/IConsoleManager.h"
 #include "Misc/Paths.h"
 #include "ShaderCore.h"
+#include "ToolMenus.h"
 #include "Widgets/Docking/SDockTab.h"
 #include "Framework/Docking/TabManager.h"
 
-static const FName TextureFrameDebuggerTabName("TextureFrameDebugger");
+static const FName FrameRenderInspectorTabName("FrameRenderInspector");
 
-#define LOCTEXT_NAMESPACE "FTextureFrameDebuggerModule"
+#define LOCTEXT_NAMESPACE "FFrameRenderInspectorModule"
 
-void FTextureFrameDebuggerModule::StartupModule()
+void FFrameRenderInspectorModule::StartupModule()
 {
-	if (TSharedPtr<IPlugin> Plugin = IPluginManager::Get().FindPlugin(TEXT("TextureFrameDebugger")))
+	if (TSharedPtr<IPlugin> Plugin = IPluginManager::Get().FindPlugin(TEXT("FrameRenderInspector")))
 	{
 		const FString ShaderDirectory = FPaths::Combine(Plugin->GetBaseDir(), TEXT("Shaders"));
-		AddShaderSourceDirectoryMapping(TEXT("/Plugin/TextureFrameDebugger"), ShaderDirectory);
+		AddShaderSourceDirectoryMapping(TEXT("/Plugin/FrameRenderInspector"), ShaderDirectory);
 	}
 
 	// Register the tab spawner
-	FGlobalTabmanager::Get()->RegisterNomadTabSpawner(TextureFrameDebuggerTabName, FOnSpawnTab::CreateRaw(this, &FTextureFrameDebuggerModule::OnSpawnPluginTab))
-		.SetDisplayName(LOCTEXT("TextureFrameDebuggerTabTitle", "Texture Frame Debugger"))
-		.SetMenuType(ETabSpawnerMenuType::Enabled);
+	FGlobalTabmanager::Get()->RegisterNomadTabSpawner(FrameRenderInspectorTabName, FOnSpawnTab::CreateRaw(this, &FFrameRenderInspectorModule::OnSpawnPluginTab))
+		.SetDisplayName(LOCTEXT("FrameRenderInspectorTabTitle", "Frame Render Inspector"))
+		.SetMenuType(ETabSpawnerMenuType::Hidden);
+
+	UToolMenus::RegisterStartupCallback(
+		FSimpleMulticastDelegate::FDelegate::CreateRaw(this, &FFrameRenderInspectorModule::RegisterMenus));
 }
 
-void FTextureFrameDebuggerModule::ShutdownModule()
+void FFrameRenderInspectorModule::ShutdownModule()
 {
 	if (DebuggerTab.IsValid())
 	{
@@ -39,27 +43,57 @@ void FTextureFrameDebuggerModule::ShutdownModule()
 	SetRDGImmediateModeEnabled(false);
 
 	// Unregister the tab spawner
-	FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(TextureFrameDebuggerTabName);
+	FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(FrameRenderInspectorTabName);
+
+	UnregisterMenus();
 	
 	// Cleanup collector
 	Collector.Reset();
 }
 
-TSharedRef<SDockTab> FTextureFrameDebuggerModule::OnSpawnPluginTab(const FSpawnTabArgs& SpawnTabArgs)
+void FFrameRenderInspectorModule::RegisterMenus()
+{
+	if (!UToolMenus::IsToolMenuUIEnabled())
+	{
+		return;
+	}
+
+	FToolMenuOwnerScoped OwnerScoped(this);
+	UToolMenu* ToolsMenu = UToolMenus::Get()->ExtendMenu("LevelEditor.MainMenu.Tools");
+	FToolMenuSection& Section = ToolsMenu->FindOrAddSection("DebugTools");
+	Section.AddMenuEntry(
+		"OpenFrameRenderInspector",
+		LOCTEXT("OpenFrameRenderInspectorLabel", "Frame Render Inspector"),
+		LOCTEXT("OpenFrameRenderInspectorTooltip", "Open the Frame Render Inspector window."),
+		FSlateIcon(),
+		FUIAction(FExecuteAction::CreateRaw(this, &FFrameRenderInspectorModule::OpenDebuggerWindow)));
+}
+
+void FFrameRenderInspectorModule::UnregisterMenus()
+{
+	if (UToolMenus* ToolMenus = UToolMenus::TryGet())
+	{
+		UToolMenus::UnRegisterStartupCallback(this);
+		ToolMenus->RemoveEntry("LevelEditor.MainMenu.Tools", "DebugTools", "OpenFrameRenderInspector");
+		UToolMenus::UnregisterOwner(this);
+	}
+}
+
+TSharedRef<SDockTab> FFrameRenderInspectorModule::OnSpawnPluginTab(const FSpawnTabArgs& SpawnTabArgs)
 {
 	EnsureCollectorInitialized();
 
-	DebuggerUI = SNew(STextureFrameDebuggerUI);
-	DebuggerUI->SetOnTextureSelected(STextureFrameDebuggerUI::FOnTextureSelected::CreateRaw(this, &FTextureFrameDebuggerModule::OnTextureSelected));
-	DebuggerUI->SetOnBufferSelected(STextureFrameDebuggerUI::FOnBufferSelected::CreateRaw(this, &FTextureFrameDebuggerModule::OnBufferSelected));
-	DebuggerUI->SetOnRefreshBuffer(STextureFrameDebuggerUI::FOnRefreshBuffer::CreateRaw(this, &FTextureFrameDebuggerModule::OnRefreshBufferRequested));
-	DebuggerUI->SetOnRenderOptionBoolChanged(STextureFrameDebuggerUI::FOnRenderOptionBoolChanged::CreateRaw(this, &FTextureFrameDebuggerModule::OnRenderOptionBoolChanged));
-	DebuggerUI->SetOnRenderOptionValueCommitted(STextureFrameDebuggerUI::FOnRenderOptionValueCommitted::CreateRaw(this, &FTextureFrameDebuggerModule::OnRenderOptionValueCommitted));
-	DebuggerUI->SetOnOverlayOpacityChanged(STextureFrameDebuggerUI::FOnOverlayOpacityChanged::CreateRaw(this, &FTextureFrameDebuggerModule::OnOverlayOpacityChanged));
-	DebuggerUI->SetOnOverlayCoverageChanged(STextureFrameDebuggerUI::FOnOverlayCoverageChanged::CreateRaw(this, &FTextureFrameDebuggerModule::OnOverlayCoverageChanged));
-	DebuggerUI->SetOnComputeVisibleRange(STextureFrameDebuggerUI::FOnComputeVisibleRange::CreateRaw(this, &FTextureFrameDebuggerModule::OnComputeVisibleRangeRequested));
-	DebuggerUI->SetOnRangeLockChanged(STextureFrameDebuggerUI::FOnRangeLockChanged::CreateRaw(this, &FTextureFrameDebuggerModule::OnRangeLockChanged));
-	DebuggerUI->SetOnRangeEdited(STextureFrameDebuggerUI::FOnRangeEdited::CreateRaw(this, &FTextureFrameDebuggerModule::OnRangeEdited));
+	DebuggerUI = SNew(SFrameRenderInspectorUI);
+	DebuggerUI->SetOnTextureSelected(SFrameRenderInspectorUI::FOnTextureSelected::CreateRaw(this, &FFrameRenderInspectorModule::OnTextureSelected));
+	DebuggerUI->SetOnBufferSelected(SFrameRenderInspectorUI::FOnBufferSelected::CreateRaw(this, &FFrameRenderInspectorModule::OnBufferSelected));
+	DebuggerUI->SetOnRefreshBuffer(SFrameRenderInspectorUI::FOnRefreshBuffer::CreateRaw(this, &FFrameRenderInspectorModule::OnRefreshBufferRequested));
+	DebuggerUI->SetOnRenderOptionBoolChanged(SFrameRenderInspectorUI::FOnRenderOptionBoolChanged::CreateRaw(this, &FFrameRenderInspectorModule::OnRenderOptionBoolChanged));
+	DebuggerUI->SetOnRenderOptionValueCommitted(SFrameRenderInspectorUI::FOnRenderOptionValueCommitted::CreateRaw(this, &FFrameRenderInspectorModule::OnRenderOptionValueCommitted));
+	DebuggerUI->SetOnOverlayOpacityChanged(SFrameRenderInspectorUI::FOnOverlayOpacityChanged::CreateRaw(this, &FFrameRenderInspectorModule::OnOverlayOpacityChanged));
+	DebuggerUI->SetOnOverlayCoverageChanged(SFrameRenderInspectorUI::FOnOverlayCoverageChanged::CreateRaw(this, &FFrameRenderInspectorModule::OnOverlayCoverageChanged));
+	DebuggerUI->SetOnComputeVisibleRange(SFrameRenderInspectorUI::FOnComputeVisibleRange::CreateRaw(this, &FFrameRenderInspectorModule::OnComputeVisibleRangeRequested));
+	DebuggerUI->SetOnRangeLockChanged(SFrameRenderInspectorUI::FOnRangeLockChanged::CreateRaw(this, &FFrameRenderInspectorModule::OnRangeLockChanged));
+	DebuggerUI->SetOnRangeEdited(SFrameRenderInspectorUI::FOnRangeEdited::CreateRaw(this, &FFrameRenderInspectorModule::OnRangeEdited));
 	DebuggerUI->UpdateTextureOptions(CachedTextureNames, SelectedTextureName);
 	DebuggerUI->UpdateBufferOptions(CachedBufferItems, SelectedBufferName);
 	DebuggerUI->UpdateRenderOptions(CachedRenderOptions);
@@ -85,7 +119,7 @@ TSharedRef<SDockTab> FTextureFrameDebuggerModule::OnSpawnPluginTab(const FSpawnT
 
 	TSharedRef<SDockTab> NewTab = SNew(SDockTab)
 		.TabRole(ETabRole::NomadTab)
-		.OnTabClosed(SDockTab::FOnTabClosedCallback::CreateRaw(this, &FTextureFrameDebuggerModule::OnDebuggerTabClosed))
+		.OnTabClosed(SDockTab::FOnTabClosedCallback::CreateRaw(this, &FFrameRenderInspectorModule::OnDebuggerTabClosed))
 		[
 			DebuggerUI.ToSharedRef()
 		];
@@ -94,19 +128,19 @@ TSharedRef<SDockTab> FTextureFrameDebuggerModule::OnSpawnPluginTab(const FSpawnT
 	return NewTab;
 }
 
-void FTextureFrameDebuggerModule::OpenDebuggerWindow()
+void FFrameRenderInspectorModule::OpenDebuggerWindow()
 {
 	EnsureCollectorInitialized();
 
-	if (!FGlobalTabmanager::Get()->FindExistingLiveTab(FTabId(TextureFrameDebuggerTabName)).IsValid())
+	if (!FGlobalTabmanager::Get()->FindExistingLiveTab(FTabId(FrameRenderInspectorTabName)).IsValid())
 	{
 		DebuggerTab.Reset();
 	}
 
-	DebuggerTab = FGlobalTabmanager::Get()->TryInvokeTab(FTabId(TextureFrameDebuggerTabName));
+	DebuggerTab = FGlobalTabmanager::Get()->TryInvokeTab(FTabId(FrameRenderInspectorTabName));
 }
 
-void FTextureFrameDebuggerModule::UpdateUI(const TArray<FTextureDebuggerItem>& TextureItems, const TArray<FBufferDebuggerItem>& BufferItems)
+void FFrameRenderInspectorModule::UpdateUI(const TArray<FTextureDebuggerItem>& TextureItems, const TArray<FBufferDebuggerItem>& BufferItems)
 {
 	TArray<FString> TextureNames;
 	TextureNames.Reserve(TextureItems.Num());
@@ -161,7 +195,7 @@ void FTextureFrameDebuggerModule::UpdateUI(const TArray<FTextureDebuggerItem>& T
 	}
 }
 
-void FTextureFrameDebuggerModule::UpdateBufferReadback(const FBufferReadbackResult& ReadbackResult)
+void FFrameRenderInspectorModule::UpdateBufferReadback(const FBufferReadbackResult& ReadbackResult)
 {
 	LatestBufferReadback = ReadbackResult;
 	bHasBufferReadback = true;
@@ -172,7 +206,7 @@ void FTextureFrameDebuggerModule::UpdateBufferReadback(const FBufferReadbackResu
 	}
 }
 
-void FTextureFrameDebuggerModule::RefreshRenderOptions()
+void FFrameRenderInspectorModule::RefreshRenderOptions()
 {
 	CachedRenderOptions.Empty();
 
@@ -225,7 +259,7 @@ void FTextureFrameDebuggerModule::RefreshRenderOptions()
 	}
 }
 
-void FTextureFrameDebuggerModule::OnTextureSelected(const FString& TextureName)
+void FFrameRenderInspectorModule::OnTextureSelected(const FString& TextureName)
 {
 	SelectedTextureName = TextureName;
 	
@@ -235,7 +269,7 @@ void FTextureFrameDebuggerModule::OnTextureSelected(const FString& TextureName)
 	}
 }
 
-void FTextureFrameDebuggerModule::OnBufferSelected(const FString& BufferName)
+void FFrameRenderInspectorModule::OnBufferSelected(const FString& BufferName)
 {
 	SelectedBufferName = BufferName;
 
@@ -245,7 +279,7 @@ void FTextureFrameDebuggerModule::OnBufferSelected(const FString& BufferName)
 	}
 }
 
-void FTextureFrameDebuggerModule::OnRefreshBufferRequested()
+void FFrameRenderInspectorModule::OnRefreshBufferRequested()
 {
 	if (Collector.IsValid())
 	{
@@ -253,7 +287,7 @@ void FTextureFrameDebuggerModule::OnRefreshBufferRequested()
 	}
 }
 
-void FTextureFrameDebuggerModule::OnRenderOptionBoolChanged(const FString& OptionName, bool bValue)
+void FFrameRenderInspectorModule::OnRenderOptionBoolChanged(const FString& OptionName, bool bValue)
 {
 	if (IConsoleVariable* CVar = IConsoleManager::Get().FindConsoleVariable(*OptionName))
 	{
@@ -263,7 +297,7 @@ void FTextureFrameDebuggerModule::OnRenderOptionBoolChanged(const FString& Optio
 	RefreshRenderOptions();
 }
 
-void FTextureFrameDebuggerModule::OnRenderOptionValueCommitted(const FString& OptionName, const FString& ValueText)
+void FFrameRenderInspectorModule::OnRenderOptionValueCommitted(const FString& OptionName, const FString& ValueText)
 {
 	if (IConsoleVariable* CVar = IConsoleManager::Get().FindConsoleVariable(*OptionName))
 	{
@@ -273,7 +307,7 @@ void FTextureFrameDebuggerModule::OnRenderOptionValueCommitted(const FString& Op
 	RefreshRenderOptions();
 }
 
-void FTextureFrameDebuggerModule::OnOverlayOpacityChanged(float NewOpacity)
+void FFrameRenderInspectorModule::OnOverlayOpacityChanged(float NewOpacity)
 {
 	OverlayOpacity = FMath::Clamp(NewOpacity, 0.0f, 1.0f);
 
@@ -283,7 +317,7 @@ void FTextureFrameDebuggerModule::OnOverlayOpacityChanged(float NewOpacity)
 	}
 }
 
-void FTextureFrameDebuggerModule::OnOverlayCoverageChanged(float NewCoverage)
+void FFrameRenderInspectorModule::OnOverlayCoverageChanged(float NewCoverage)
 {
 	OverlayCoverage = FMath::Clamp(NewCoverage, 0.0f, 1.0f);
 
@@ -293,7 +327,7 @@ void FTextureFrameDebuggerModule::OnOverlayCoverageChanged(float NewCoverage)
 	}
 }
 
-void FTextureFrameDebuggerModule::OnComputeVisibleRangeRequested()
+void FFrameRenderInspectorModule::OnComputeVisibleRangeRequested()
 {
 	if (Collector.IsValid())
 	{
@@ -301,7 +335,7 @@ void FTextureFrameDebuggerModule::OnComputeVisibleRangeRequested()
 	}
 }
 
-void FTextureFrameDebuggerModule::OnRangeLockChanged(bool bLocked)
+void FFrameRenderInspectorModule::OnRangeLockChanged(bool bLocked)
 {
 	bRangeLocked = bLocked;
 
@@ -311,7 +345,7 @@ void FTextureFrameDebuggerModule::OnRangeLockChanged(bool bLocked)
 	}
 }
 
-void FTextureFrameDebuggerModule::OnRangeEdited(float NewMin, float NewMax)
+void FFrameRenderInspectorModule::OnRangeEdited(float NewMin, float NewMax)
 {
 	CurrentRangeMin = NewMin;
 	CurrentRangeMax = NewMax;
@@ -324,7 +358,7 @@ void FTextureFrameDebuggerModule::OnRangeEdited(float NewMin, float NewMax)
 	}
 }
 
-void FTextureFrameDebuggerModule::OnDebuggerTabClosed(TSharedRef<SDockTab> ClosedTab)
+void FFrameRenderInspectorModule::OnDebuggerTabClosed(TSharedRef<SDockTab> ClosedTab)
 {
 	ClosedTab->SetOnTabClosed(SDockTab::FOnTabClosedCallback());
 
@@ -339,7 +373,7 @@ void FTextureFrameDebuggerModule::OnDebuggerTabClosed(TSharedRef<SDockTab> Close
 	DebuggerTab.Reset();
 }
 
-void FTextureFrameDebuggerModule::SetRDGImmediateModeEnabled(bool bEnabled) const
+void FFrameRenderInspectorModule::SetRDGImmediateModeEnabled(bool bEnabled) const
 {
 	if (IConsoleVariable* CVarRDGImmediate = IConsoleManager::Get().FindConsoleVariable(TEXT("r.RDG.ImmediateMode")))
 	{
@@ -347,11 +381,11 @@ void FTextureFrameDebuggerModule::SetRDGImmediateModeEnabled(bool bEnabled) cons
 	}
 }
 
-void FTextureFrameDebuggerModule::EnsureCollectorInitialized()
+void FFrameRenderInspectorModule::EnsureCollectorInitialized()
 {
 	if (!Collector.IsValid() && GEngine)
 	{
-		Collector = FSceneViewExtensions::NewExtension<FTextureFrameCollector>();
+		Collector = FSceneViewExtensions::NewExtension<FFrameRenderInspectorCollector>();
 
 		if (Collector.IsValid())
 		{
@@ -372,4 +406,4 @@ void FTextureFrameDebuggerModule::EnsureCollectorInitialized()
 
 #undef LOCTEXT_NAMESPACE
 	
-IMPLEMENT_MODULE(FTextureFrameDebuggerModule, TextureFrameDebugger)
+IMPLEMENT_MODULE(FFrameRenderInspectorModule, FrameRenderInspector)

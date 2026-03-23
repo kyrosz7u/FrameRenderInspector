@@ -1,6 +1,6 @@
-#include "TextureFrameCollector.h"
-#include "TextureFrameDebuggerModule.h"
-#include "TextureFrameRDGAccess.h"
+#include "FrameRenderInspectorCollector.h"
+#include "FrameRenderInspectorModule.h"
+#include "FrameRenderInspectorRDGAccess.h"
 #include "PostProcess/PostProcessing.h"
 #include "PostProcess/PostProcessMaterial.h"
 #include "RenderGraphUtils.h"
@@ -14,10 +14,10 @@
 
 extern RENDERER_API FRenderTargetPool GRenderTargetPool;
 
-class FTextureFrameOverlayPS : public FGlobalShader
+class FFrameRenderInspectorOverlayPS : public FGlobalShader
 {
-	DECLARE_GLOBAL_SHADER(FTextureFrameOverlayPS);
-	SHADER_USE_PARAMETER_STRUCT(FTextureFrameOverlayPS, FGlobalShader);
+	DECLARE_GLOBAL_SHADER(FFrameRenderInspectorOverlayPS);
+	SHADER_USE_PARAMETER_STRUCT(FFrameRenderInspectorOverlayPS, FGlobalShader);
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT(FScreenPassTextureViewportParameters, Output)
@@ -32,12 +32,12 @@ class FTextureFrameOverlayPS : public FGlobalShader
 	END_SHADER_PARAMETER_STRUCT()
 };
 
-IMPLEMENT_GLOBAL_SHADER(FTextureFrameOverlayPS, "/Plugin/TextureFrameDebugger/Private/TextureFrameOverlay.usf", "MainPS", SF_Pixel);
+IMPLEMENT_GLOBAL_SHADER(FFrameRenderInspectorOverlayPS, "/Plugin/FrameRenderInspector/Private/FrameRenderInspectorOverlay.usf", "MainPS", SF_Pixel);
 
-class FTextureFrameComputeVisibleRangeCS : public FGlobalShader
+class FFrameRenderInspectorComputeVisibleRangeCS : public FGlobalShader
 {
-	DECLARE_GLOBAL_SHADER(FTextureFrameComputeVisibleRangeCS);
-	SHADER_USE_PARAMETER_STRUCT(FTextureFrameComputeVisibleRangeCS, FGlobalShader);
+	DECLARE_GLOBAL_SHADER(FFrameRenderInspectorComputeVisibleRangeCS);
+	SHADER_USE_PARAMETER_STRUCT(FFrameRenderInspectorComputeVisibleRangeCS, FGlobalShader);
 
 public:
 	static constexpr int32 ThreadGroupSizeX = 8;
@@ -52,7 +52,7 @@ public:
 	END_SHADER_PARAMETER_STRUCT()
 };
 
-IMPLEMENT_GLOBAL_SHADER(FTextureFrameComputeVisibleRangeCS, "/Plugin/TextureFrameDebugger/Private/TextureFrameOverlay.usf", "ComputeVisibleRangeCS", SF_Compute);
+IMPLEMENT_GLOBAL_SHADER(FFrameRenderInspectorComputeVisibleRangeCS, "/Plugin/FrameRenderInspector/Private/FrameRenderInspectorOverlay.usf", "ComputeVisibleRangeCS", SF_Compute);
 
 static uint32 EncodeOrderedFloat(float Value)
 {
@@ -78,7 +78,7 @@ static float DecodeOrderedFloat(uint32 Value)
 	return Converter.FloatValue;
 }
 
-static void AddTextureFrameOverlayPass(
+static void AddFrameRenderInspectorOverlayPass(
 	FRDGBuilder& GraphBuilder,
 	const FViewInfo& View,
 	FRDGTextureRef InputTexture,
@@ -95,9 +95,9 @@ static void AddTextureFrameOverlayPass(
 	const FScreenPassTextureViewport OutputViewport(OutputTexture, OutputRect);
 
 	TShaderMapRef<FScreenPassVS> VertexShader(View.ShaderMap);
-	TShaderMapRef<FTextureFrameOverlayPS> PixelShader(View.ShaderMap);
+	TShaderMapRef<FFrameRenderInspectorOverlayPS> PixelShader(View.ShaderMap);
 
-	FTextureFrameOverlayPS::FParameters* PassParameters = GraphBuilder.AllocParameters<FTextureFrameOverlayPS::FParameters>();
+	FFrameRenderInspectorOverlayPS::FParameters* PassParameters = GraphBuilder.AllocParameters<FFrameRenderInspectorOverlayPS::FParameters>();
 	PassParameters->Output = GetScreenPassTextureViewportParameters(OutputViewport);
 	PassParameters->InputTexture = InputTexture;
 	PassParameters->InputSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
@@ -111,7 +111,7 @@ static void AddTextureFrameOverlayPass(
 	FRHIBlendState* BlendState = TStaticBlendState<CW_RGB, BO_Add, BF_SourceAlpha, BF_InverseSourceAlpha>::GetRHI();
 	AddDrawScreenPass(
 		GraphBuilder,
-		RDG_EVENT_NAME("TextureFrameOverlay"),
+		RDG_EVENT_NAME("FrameRenderInspectorOverlay"),
 		View,
 		OutputViewport,
 		InputViewport,
@@ -129,9 +129,9 @@ static void AddComputeVisibleRangePass(
 	bool bVisualizeAsSingleChannel,
 	FRDGBufferRef VisibleRangeBuffer)
 {
-	TShaderMapRef<FTextureFrameComputeVisibleRangeCS> ComputeShader(View.ShaderMap);
+	TShaderMapRef<FFrameRenderInspectorComputeVisibleRangeCS> ComputeShader(View.ShaderMap);
 
-	FTextureFrameComputeVisibleRangeCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FTextureFrameComputeVisibleRangeCS::FParameters>();
+	FFrameRenderInspectorComputeVisibleRangeCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FFrameRenderInspectorComputeVisibleRangeCS::FParameters>();
 	PassParameters->InputTexture = GraphBuilder.CreateSRV(FRDGTextureSRVDesc::Create(InputTexture));
 	PassParameters->InputRectMin = InputRect.Min;
 	PassParameters->InputRectMax = InputRect.Max;
@@ -143,68 +143,68 @@ static void AddComputeVisibleRangePass(
 		RDG_EVENT_NAME("TextureFrameComputeVisibleRange"),
 		ComputeShader,
 		PassParameters,
-		FComputeShaderUtils::GetGroupCount(InputRect.Size(), FIntPoint(FTextureFrameComputeVisibleRangeCS::ThreadGroupSizeX, FTextureFrameComputeVisibleRangeCS::ThreadGroupSizeY)));
+		FComputeShaderUtils::GetGroupCount(InputRect.Size(), FIntPoint(FFrameRenderInspectorComputeVisibleRangeCS::ThreadGroupSizeX, FFrameRenderInspectorComputeVisibleRangeCS::ThreadGroupSizeY)));
 }
 
-FTextureFrameCollector::FTextureFrameCollector(const FAutoRegister& AutoRegister)
+FFrameRenderInspectorCollector::FFrameRenderInspectorCollector(const FAutoRegister& AutoRegister)
 	: FSceneViewExtensionBase(AutoRegister)
 	, bIsCaptureEnabled(false)
 {
-	AutoRangeReadback = MakeUnique<FRHIGPUBufferReadback>(TEXT("TextureFrameDebugger.VisibleRangeReadback"));
-	BufferReadback = MakeUnique<FRHIGPUBufferReadback>(TEXT("TextureFrameDebugger.BufferReadback"));
+	AutoRangeReadback = MakeUnique<FRHIGPUBufferReadback>(TEXT("FrameRenderInspector.VisibleRangeReadback"));
+	BufferReadback = MakeUnique<FRHIGPUBufferReadback>(TEXT("FrameRenderInspector.BufferReadback"));
 }
 
-void FTextureFrameCollector::SetCaptureEnabled(bool bEnabled)
+void FFrameRenderInspectorCollector::SetCaptureEnabled(bool bEnabled)
 {
 	bIsCaptureEnabled = bEnabled;
 }
 
-void FTextureFrameCollector::SetSelectedTexture(const FString& TextureName)
+void FFrameRenderInspectorCollector::SetSelectedTexture(const FString& TextureName)
 {
 	FScopeLock Lock(&SelectedTextureMutex);
 	SelectedTextureName = TextureName;
 }
 
-void FTextureFrameCollector::SetSelectedBuffer(const FString& BufferName)
+void FFrameRenderInspectorCollector::SetSelectedBuffer(const FString& BufferName)
 {
 	FScopeLock Lock(&SelectedTextureMutex);
 	SelectedBufferName = BufferName;
 }
 
-void FTextureFrameCollector::SetOverlayOpacity(float InOpacity)
+void FFrameRenderInspectorCollector::SetOverlayOpacity(float InOpacity)
 {
 	FScopeLock Lock(&SelectedTextureMutex);
 	OverlayOpacity = FMath::Clamp(InOpacity, 0.0f, 1.0f);
 }
 
-void FTextureFrameCollector::SetOverlayCoverage(float InCoverage)
+void FFrameRenderInspectorCollector::SetOverlayCoverage(float InCoverage)
 {
 	FScopeLock Lock(&SelectedTextureMutex);
 	OverlayCoverage = FMath::Clamp(InCoverage, 0.0f, 1.0f);
 }
 
-void FTextureFrameCollector::SetRangeLocked(bool bLocked)
+void FFrameRenderInspectorCollector::SetRangeLocked(bool bLocked)
 {
 	FScopeLock Lock(&SelectedTextureMutex);
 	bRangeLocked = bLocked;
 }
 
-void FTextureFrameCollector::SetManualRange(float InMin, float InMax)
+void FFrameRenderInspectorCollector::SetManualRange(float InMin, float InMax)
 {
 	SetAutoRange(InMin, InMax);
 }
 
-void FTextureFrameCollector::SetAutoRange(float InMin, float InMax)
+void FFrameRenderInspectorCollector::SetAutoRange(float InMin, float InMax)
 {
 	FScopeLock Lock(&SelectedTextureMutex);
 	const float ClampedMax = FMath::Max(InMin + UE_SMALL_NUMBER, InMax);
 	AutoRangeMin = InMin;
 	AutoRangeMax = ClampedMax;
 	bHasAutoRange = true;
-	UE_LOG(LogTemp, Log, TEXT("TextureFrameDebugger Visible Range [%s]: Min=%g Max=%g"), *SelectedTextureName, AutoRangeMin, AutoRangeMax);
+	UE_LOG(LogTemp, Log, TEXT("FrameRenderInspector Visible Range [%s]: Min=%g Max=%g"), *SelectedTextureName, AutoRangeMin, AutoRangeMax);
 }
 
-void FTextureFrameCollector::RequestVisibleRangeUpdate()
+void FFrameRenderInspectorCollector::RequestVisibleRangeUpdate()
 {
 	FScopeLock Lock(&SelectedTextureMutex);
 	if (!bRangeLocked)
@@ -213,7 +213,7 @@ void FTextureFrameCollector::RequestVisibleRangeUpdate()
 	}
 }
 
-void FTextureFrameCollector::RequestBufferCapture()
+void FFrameRenderInspectorCollector::RequestBufferCapture()
 {
 	FScopeLock Lock(&SelectedTextureMutex);
 	if (!SelectedBufferName.IsEmpty())
@@ -222,7 +222,7 @@ void FTextureFrameCollector::RequestBufferCapture()
 	}
 }
 
-bool FTextureFrameCollector::ConsumeVisibleRangeUpdateRequest()
+bool FFrameRenderInspectorCollector::ConsumeVisibleRangeUpdateRequest()
 {
 	FScopeLock Lock(&SelectedTextureMutex);
 	const bool bWasPending = bPendingVisibleRangeUpdate;
@@ -230,7 +230,7 @@ bool FTextureFrameCollector::ConsumeVisibleRangeUpdateRequest()
 	return bWasPending;
 }
 
-bool FTextureFrameCollector::ConsumeBufferCaptureRequest(FString& OutBufferName)
+bool FFrameRenderInspectorCollector::ConsumeBufferCaptureRequest(FString& OutBufferName)
 {
 	FScopeLock Lock(&SelectedTextureMutex);
 	if (!bPendingBufferCapture || SelectedBufferName.IsEmpty())
@@ -243,7 +243,7 @@ bool FTextureFrameCollector::ConsumeBufferCaptureRequest(FString& OutBufferName)
 	return true;
 }
 
-void FTextureFrameCollector::PollAutoRangeReadback()
+void FFrameRenderInspectorCollector::PollAutoRangeReadback()
 {
 	if (!AutoRangeReadback.IsValid())
 	{
@@ -277,7 +277,7 @@ void FTextureFrameCollector::PollAutoRangeReadback()
 	bAutoRangeReadbackPending = false;
 }
 
-void FTextureFrameCollector::PollBufferReadback()
+void FFrameRenderInspectorCollector::PollBufferReadback()
 {
 	if (!BufferReadback.IsValid())
 	{
@@ -334,24 +334,24 @@ void FTextureFrameCollector::PollBufferReadback()
 
 	AsyncTask(ENamedThreads::GameThread, [Result = MoveTemp(Result)]() mutable
 	{
-		FTextureFrameDebuggerModule& Module = FModuleManager::GetModuleChecked<FTextureFrameDebuggerModule>("TextureFrameDebugger");
+		FFrameRenderInspectorModule& Module = FModuleManager::GetModuleChecked<FFrameRenderInspectorModule>("FrameRenderInspector");
 		Module.UpdateBufferReadback(Result);
 	});
 }
 
-FString FTextureFrameCollector::GetSelectedTextureName() const
+FString FFrameRenderInspectorCollector::GetSelectedTextureName() const
 {
 	FScopeLock Lock(&SelectedTextureMutex);
 	return SelectedTextureName;
 }
 
-FString FTextureFrameCollector::GetSelectedBufferName() const
+FString FFrameRenderInspectorCollector::GetSelectedBufferName() const
 {
 	FScopeLock Lock(&SelectedTextureMutex);
 	return SelectedBufferName;
 }
 
-void FTextureFrameCollector::GetRangeState(float& OutMin, float& OutMax, bool& bOutHasRange, bool& bOutRangeLocked) const
+void FFrameRenderInspectorCollector::GetRangeState(float& OutMin, float& OutMax, bool& bOutHasRange, bool& bOutRangeLocked) const
 {
 	FScopeLock Lock(&SelectedTextureMutex);
 	OutMin = AutoRangeMin;
@@ -360,7 +360,7 @@ void FTextureFrameCollector::GetRangeState(float& OutMin, float& OutMax, bool& b
 	bOutRangeLocked = bRangeLocked;
 }
 
-void FTextureFrameCollector::GetOverlaySettings(float& OutOpacity, float& OutCoverage, float& OutAutoRangeMin, float& OutAutoRangeMax) const
+void FFrameRenderInspectorCollector::GetOverlaySettings(float& OutOpacity, float& OutCoverage, float& OutAutoRangeMin, float& OutAutoRangeMax) const
 {
 	FScopeLock Lock(&SelectedTextureMutex);
 	OutOpacity = OverlayOpacity;
@@ -395,7 +395,7 @@ static bool IsSingleChannelDebugFormat(EPixelFormat Format)
 	}
 }
 
-void FTextureFrameCollector::SubscribeToPostProcessingPass(
+void FFrameRenderInspectorCollector::SubscribeToPostProcessingPass(
 	EPostProcessingPass Pass,
 	FAfterPassCallbackDelegateArray& InOutCallbacks,
 	bool bIsPassEnabled)
@@ -523,7 +523,7 @@ void FTextureFrameCollector::SubscribeToPostProcessingPass(
 				if (bShouldCaptureBuffer && SelectedBuffer && BufferReadback.IsValid())
 				{
 					const uint32 NumBytes = SelectedBuffer->Desc.GetSize();
-					AddReadbackBufferPass(GraphBuilder, RDG_EVENT_NAME("TextureFrameDebugger.BufferReadback"), SelectedBuffer,
+					AddReadbackBufferPass(GraphBuilder, RDG_EVENT_NAME("FrameRenderInspector.BufferReadback"), SelectedBuffer,
 						[this, SelectedBuffer, NumBytes](FRHICommandList& RHICmdList)
 						{
 							BufferReadback->EnqueueCopy(RHICmdList, SelectedBuffer->GetRHI(), NumBytes);
@@ -548,7 +548,7 @@ void FTextureFrameCollector::SubscribeToPostProcessingPass(
 			}));
 }
 
-void FTextureFrameCollector::ProcessCollectedResources(const TMap<FString, FIntPoint>& TextureInfo, const TArray<FBufferDebuggerItem>& BufferItems)
+void FFrameRenderInspectorCollector::ProcessCollectedResources(const TMap<FString, FIntPoint>& TextureInfo, const TArray<FBufferDebuggerItem>& BufferItems)
 {
 	TArray<FString> CurrentTextureNames;
 	CurrentTextureNames.Reserve(TextureInfo.Num());
@@ -579,11 +579,11 @@ void FTextureFrameCollector::ProcessCollectedResources(const TMap<FString, FIntP
 		Items.Add(Item);
 	}
 
-	FTextureFrameDebuggerModule& Module = FModuleManager::GetModuleChecked<FTextureFrameDebuggerModule>("TextureFrameDebugger");
+	FFrameRenderInspectorModule& Module = FModuleManager::GetModuleChecked<FFrameRenderInspectorModule>("FrameRenderInspector");
 	Module.UpdateUI(Items, BufferItems);
 }
 
-void FTextureFrameCollector::DrawSelectedTexturePreview(
+void FFrameRenderInspectorCollector::DrawSelectedTexturePreview(
 	FRDGBuilder& GraphBuilder,
 	const FViewInfo& View,
 	FRDGTexture* SelectedTexture,
@@ -673,7 +673,7 @@ void FTextureFrameCollector::DrawSelectedTexturePreview(
 		}
 	}
 
-	AddTextureFrameOverlayPass(
+	AddFrameRenderInspectorOverlayPass(
 		GraphBuilder,
 		View,
 		SelectedTexture,

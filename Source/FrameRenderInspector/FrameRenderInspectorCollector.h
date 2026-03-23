@@ -3,7 +3,7 @@
 #include "CoreMinimal.h"
 #include "HAL/CriticalSection.h"
 #include "SceneViewExtension.h"
-#include "TextureFrameDebuggerTypes.h"
+#include "FrameRenderInspectorTypes.h"
 
 // Forward declarations
 class FRDGBuilder;
@@ -16,11 +16,11 @@ struct FPostProcessMaterialInputs;
 /**
  * Collects Render Graph textures from the post-processing pipeline.
  */
-class FTextureFrameCollector : public FSceneViewExtensionBase
+class FFrameRenderInspectorCollector : public FSceneViewExtensionBase
 {
 public:
-	FTextureFrameCollector(const FAutoRegister& AutoRegister);
-	virtual ~FTextureFrameCollector() {}
+	FFrameRenderInspectorCollector(const FAutoRegister& AutoRegister);
+	virtual ~FFrameRenderInspectorCollector() {}
 
 	// ISceneViewExtension interface
 	virtual void SetupViewFamily(FSceneViewFamily& InViewFamily) override {}

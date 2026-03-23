@@ -1,9 +1,9 @@
 using UnrealBuildTool;
 using System.IO;
 
-public class TextureFrameDebugger : ModuleRules
+public class FrameRenderInspector : ModuleRules
 {
-	public TextureFrameDebugger(ReadOnlyTargetRules Target) : base(Target)
+	public FrameRenderInspector(ReadOnlyTargetRules Target) : base(Target)
 	{
 		PCHUsage = ModuleRules.PCHUsageMode.UseExplicitOrSharedPCHs;
 
@@ -25,6 +25,7 @@ public class TextureFrameDebugger : ModuleRules
 				"ApplicationCore",
 				"EditorStyle",
 				"UnrealEd",
+				"ToolMenus",
 				"Projects",
 				"RenderCore",
 				"RHI",

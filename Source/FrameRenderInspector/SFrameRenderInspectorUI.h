@@ -1,15 +1,15 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "TextureFrameDebuggerTypes.h"
+#include "FrameRenderInspectorTypes.h"
 #include "Widgets/SCompoundWidget.h"
 #include "Widgets/Input/SComboBox.h"
 #include "Widgets/Input/SEditableTextBox.h"
 
-class TEXTUREFRAMEDEBUGGER_API STextureFrameDebuggerUI : public SCompoundWidget
+class FRAMERENDERINSPECTOR_API SFrameRenderInspectorUI : public SCompoundWidget
 {
 public:
-	SLATE_BEGIN_ARGS(STextureFrameDebuggerUI) {}
+	SLATE_BEGIN_ARGS(SFrameRenderInspectorUI) {}
 	SLATE_END_ARGS()
 
 	void Construct(const FArguments& InArgs);
