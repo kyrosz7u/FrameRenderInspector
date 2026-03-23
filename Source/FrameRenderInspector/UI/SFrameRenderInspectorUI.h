@@ -1,6 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Fonts/SlateFontInfo.h"
 #include "FrameRenderInspectorTypes.h"
 #include "FrameRenderInspectorPixelPickerTypes.h"
 #include "Widgets/SCompoundWidget.h"
@@ -144,6 +145,14 @@ private:
 	FOnRangeLockChanged OnRangeLockChangedDelegate;
 	FOnRangeEdited OnRangeEditedDelegate;
 
+	void InitializeBufferFormatOptions();
+	FSlateFontInfo MakeSectionTitleFont() const;
+	FSlateFontInfo MakeControlFont() const;
+	TSharedRef<SWidget> BuildHeaderSection();
+	TSharedRef<SWidget> BuildTextureSection();
+	TSharedRef<SWidget> BuildBufferSection();
+	TSharedRef<SWidget> BuildRenderOptionsSection();
+	TSharedRef<SWidget> BuildModeSelector();
 	void RebuildFilteredOptions();
 	void RebuildFilteredBufferOptions();
 	void RebuildBufferRows();

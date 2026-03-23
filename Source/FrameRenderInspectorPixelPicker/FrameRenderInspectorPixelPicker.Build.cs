@@ -6,6 +6,9 @@ public class FrameRenderInspectorPixelPicker : ModuleRules
 	{
 		PCHUsage = ModuleRules.PCHUsageMode.UseExplicitOrSharedPCHs;
 
+		PublicIncludePaths.Add(ModuleDirectory);
+		PrivateIncludePaths.Add(ModuleDirectory);
+
 		PublicDependencyModuleNames.AddRange(
 			new string[]
 			{
