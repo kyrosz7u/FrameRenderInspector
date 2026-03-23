@@ -51,14 +51,21 @@ TSharedRef<SDockTab> FTextureFrameDebuggerModule::OnSpawnPluginTab(const FSpawnT
 
 	DebuggerUI = SNew(STextureFrameDebuggerUI);
 	DebuggerUI->SetOnTextureSelected(STextureFrameDebuggerUI::FOnTextureSelected::CreateRaw(this, &FTextureFrameDebuggerModule::OnTextureSelected));
+	DebuggerUI->SetOnBufferSelected(STextureFrameDebuggerUI::FOnBufferSelected::CreateRaw(this, &FTextureFrameDebuggerModule::OnBufferSelected));
+	DebuggerUI->SetOnRefreshBuffer(STextureFrameDebuggerUI::FOnRefreshBuffer::CreateRaw(this, &FTextureFrameDebuggerModule::OnRefreshBufferRequested));
 	DebuggerUI->SetOnOverlayOpacityChanged(STextureFrameDebuggerUI::FOnOverlayOpacityChanged::CreateRaw(this, &FTextureFrameDebuggerModule::OnOverlayOpacityChanged));
 	DebuggerUI->SetOnOverlayCoverageChanged(STextureFrameDebuggerUI::FOnOverlayCoverageChanged::CreateRaw(this, &FTextureFrameDebuggerModule::OnOverlayCoverageChanged));
 	DebuggerUI->SetOnComputeVisibleRange(STextureFrameDebuggerUI::FOnComputeVisibleRange::CreateRaw(this, &FTextureFrameDebuggerModule::OnComputeVisibleRangeRequested));
 	DebuggerUI->SetOnRangeLockChanged(STextureFrameDebuggerUI::FOnRangeLockChanged::CreateRaw(this, &FTextureFrameDebuggerModule::OnRangeLockChanged));
 	DebuggerUI->SetOnRangeEdited(STextureFrameDebuggerUI::FOnRangeEdited::CreateRaw(this, &FTextureFrameDebuggerModule::OnRangeEdited));
 	DebuggerUI->UpdateTextureOptions(CachedTextureNames, SelectedTextureName);
+	DebuggerUI->UpdateBufferOptions(CachedBufferItems, SelectedBufferName);
 	DebuggerUI->SetOverlaySettings(OverlayOpacity, OverlayCoverage);
 	DebuggerUI->SetRangeState(CurrentRangeMin, CurrentRangeMax, bHasRange, bRangeLocked);
+	if (bHasBufferReadback)
+	{
+		DebuggerUI->SetBufferReadbackResult(LatestBufferReadback);
+	}
 
 	// Enable capture when window is opened
 	if (Collector.IsValid())
@@ -66,6 +73,7 @@ TSharedRef<SDockTab> FTextureFrameDebuggerModule::OnSpawnPluginTab(const FSpawnT
 		Collector->SetCaptureEnabled(true);
 		Collector->SetOverlayOpacity(OverlayOpacity);
 		Collector->SetOverlayCoverage(OverlayCoverage);
+		Collector->SetSelectedBuffer(SelectedBufferName);
 		Collector->SetRangeLocked(bRangeLocked);
 	}
 
@@ -94,12 +102,12 @@ void FTextureFrameDebuggerModule::OpenDebuggerWindow()
 	DebuggerTab = FGlobalTabmanager::Get()->TryInvokeTab(FTabId(TextureFrameDebuggerTabName));
 }
 
-void FTextureFrameDebuggerModule::UpdateUI(const TArray<FTextureDebuggerItem>& Items)
+void FTextureFrameDebuggerModule::UpdateUI(const TArray<FTextureDebuggerItem>& TextureItems, const TArray<FBufferDebuggerItem>& BufferItems)
 {
 	TArray<FString> TextureNames;
-	TextureNames.Reserve(Items.Num());
+	TextureNames.Reserve(TextureItems.Num());
 
-	for (const FTextureDebuggerItem& Item : Items)
+	for (const FTextureDebuggerItem& Item : TextureItems)
 	{
 		TextureNames.Add(Item.Name);
 	}
@@ -113,6 +121,17 @@ void FTextureFrameDebuggerModule::UpdateUI(const TArray<FTextureDebuggerItem>& I
 		{
 			DebuggerUI->UpdateTextureOptions(CachedTextureNames, SelectedTextureName);
 		}
+	}
+
+	CachedBufferItems = BufferItems;
+	CachedBufferItems.Sort([](const FBufferDebuggerItem& A, const FBufferDebuggerItem& B)
+	{
+		return A.Name < B.Name;
+	});
+
+	if (DebuggerUI.IsValid())
+	{
+		DebuggerUI->UpdateBufferOptions(CachedBufferItems, SelectedBufferName);
 	}
 
 	if (Collector.IsValid())
@@ -138,6 +157,17 @@ void FTextureFrameDebuggerModule::UpdateUI(const TArray<FTextureDebuggerItem>& I
 	}
 }
 
+void FTextureFrameDebuggerModule::UpdateBufferReadback(const FBufferReadbackResult& ReadbackResult)
+{
+	LatestBufferReadback = ReadbackResult;
+	bHasBufferReadback = true;
+
+	if (DebuggerUI.IsValid())
+	{
+		DebuggerUI->SetBufferReadbackResult(ReadbackResult);
+	}
+}
+
 void FTextureFrameDebuggerModule::OnTextureSelected(const FString& TextureName)
 {
 	SelectedTextureName = TextureName;
@@ -145,6 +175,24 @@ void FTextureFrameDebuggerModule::OnTextureSelected(const FString& TextureName)
 	if (Collector.IsValid())
 	{
 		Collector->SetSelectedTexture(TextureName);
+	}
+}
+
+void FTextureFrameDebuggerModule::OnBufferSelected(const FString& BufferName)
+{
+	SelectedBufferName = BufferName;
+
+	if (Collector.IsValid())
+	{
+		Collector->SetSelectedBuffer(BufferName);
+	}
+}
+
+void FTextureFrameDebuggerModule::OnRefreshBufferRequested()
+{
+	if (Collector.IsValid())
+	{
+		Collector->RequestBufferCapture();
 	}
 }
 
@@ -231,6 +279,7 @@ void FTextureFrameDebuggerModule::EnsureCollectorInitialized()
 		if (Collector.IsValid())
 		{
 			Collector->SetSelectedTexture(SelectedTextureName);
+			Collector->SetSelectedBuffer(SelectedBufferName);
 			Collector->SetOverlayOpacity(OverlayOpacity);
 			Collector->SetOverlayCoverage(OverlayCoverage);
 			Collector->SetRangeLocked(bRangeLocked);

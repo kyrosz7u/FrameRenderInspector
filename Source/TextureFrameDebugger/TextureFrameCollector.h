@@ -3,6 +3,7 @@
 #include "CoreMinimal.h"
 #include "HAL/CriticalSection.h"
 #include "SceneViewExtension.h"
+#include "TextureFrameDebuggerTypes.h"
 
 // Forward declarations
 class FRDGBuilder;
@@ -39,16 +40,19 @@ public:
 
 	// Set the texture to visualize
 	void SetSelectedTexture(const FString& TextureName);
+	void SetSelectedBuffer(const FString& BufferName);
 	void SetOverlayOpacity(float InOpacity);
 	void SetOverlayCoverage(float InCoverage);
 	void SetRangeLocked(bool bLocked);
 	void SetManualRange(float InMin, float InMax);
 	void RequestVisibleRangeUpdate();
+	void RequestBufferCapture();
 	void GetRangeState(float& OutMin, float& OutMax, bool& bOutHasRange, bool& bOutRangeLocked) const;
 
 private:
 	TAtomic<bool> bIsCaptureEnabled;
 	FString SelectedTextureName;
+	FString SelectedBufferName;
 	float OverlayOpacity = 1.0f;
 	float OverlayCoverage = 0.5f;
 	float AutoRangeMin = 0.0f;
@@ -59,14 +63,25 @@ private:
 	TUniquePtr<FRHIGPUBufferReadback> AutoRangeReadback;
 	bool bAutoRangeReadbackPending = false;
 	TArray<FString> LastCollectedTextureNames;
+	TArray<FBufferDebuggerItem> LastCollectedBuffers;
+	TUniquePtr<FRHIGPUBufferReadback> BufferReadback;
+	bool bBufferReadbackPending = false;
+	bool bPendingBufferCapture = false;
+	FString BufferReadbackName;
+	uint32 BufferReadbackStride = 0;
+	uint32 BufferReadbackCount = 0;
+	uint32 BufferReadbackNumBytes = 0;
 	mutable FCriticalSection SelectedTextureMutex;
 
 	// Helper to process collected textures on the game thread
-	void ProcessCollectedTextures(const TMap<FString, FIntPoint>& TextureInfo);
+	void ProcessCollectedResources(const TMap<FString, FIntPoint>& TextureInfo, const TArray<FBufferDebuggerItem>& BufferItems);
 	FString GetSelectedTextureName() const;
+	FString GetSelectedBufferName() const;
 	void GetOverlaySettings(float& OutOpacity, float& OutCoverage, float& OutAutoRangeMin, float& OutAutoRangeMax) const;
 	void SetAutoRange(float InMin, float InMax);
 	bool ConsumeVisibleRangeUpdateRequest();
+	bool ConsumeBufferCaptureRequest(FString& OutBufferName);
 	void PollAutoRangeReadback();
+	void PollBufferReadback();
 	void DrawSelectedTexturePreview(FRDGBuilder& GraphBuilder, const FViewInfo& View, FRDGTexture* SelectedTexture, const FScreenPassTexture& SceneColor);
 };

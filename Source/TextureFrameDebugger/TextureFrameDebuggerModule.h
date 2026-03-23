@@ -2,7 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "Modules/ModuleManager.h"
-#include "STextureFrameDebuggerUI.h"
+#include "TextureFrameDebuggerTypes.h"
 #include "TextureFrameCollector.h"
 
 class FTextureFrameDebuggerModule : public IModuleInterface
@@ -17,10 +17,13 @@ public:
 
 	// Interface for other systems to update the UI
 	// This should be called on the Game Thread
-	void UpdateUI(const TArray<FTextureDebuggerItem>& Items);
+	void UpdateUI(const TArray<FTextureDebuggerItem>& TextureItems, const TArray<FBufferDebuggerItem>& BufferItems);
+	void UpdateBufferReadback(const FBufferReadbackResult& ReadbackResult);
 
 	// Called when a texture is selected in the UI
 	void OnTextureSelected(const FString& TextureName);
+	void OnBufferSelected(const FString& BufferName);
+	void OnRefreshBufferRequested();
 	void OnOverlayOpacityChanged(float NewOpacity);
 	void OnOverlayCoverageChanged(float NewCoverage);
 	void OnComputeVisibleRangeRequested();
@@ -35,7 +38,11 @@ private:
 	TSharedPtr<class SDockTab> DebuggerTab;
 	TSharedPtr<class FTextureFrameCollector> Collector;
 	TArray<FString> CachedTextureNames;
+	TArray<FBufferDebuggerItem> CachedBufferItems;
 	FString SelectedTextureName;
+	FString SelectedBufferName;
+	FBufferReadbackResult LatestBufferReadback;
+	bool bHasBufferReadback = false;
 	float OverlayOpacity = 1.0f;
 	float OverlayCoverage = 0.5f;
 	float CurrentRangeMin = 0.0f;

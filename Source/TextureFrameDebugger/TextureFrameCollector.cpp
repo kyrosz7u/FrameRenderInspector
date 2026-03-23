@@ -1,5 +1,6 @@
 #include "TextureFrameCollector.h"
 #include "TextureFrameDebuggerModule.h"
+#include "TextureFrameRDGAccess.h"
 #include "PostProcess/PostProcessing.h"
 #include "PostProcess/PostProcessMaterial.h"
 #include "RenderGraphUtils.h"
@@ -9,7 +10,6 @@
 #include "ShaderParameterStruct.h"
 #include "RHIGPUReadback.h"
 #include "Async/Async.h"
-#include "STextureFrameDebuggerUI.h"
 #include "Misc/ScopeLock.h"
 
 extern RENDERER_API FRenderTargetPool GRenderTargetPool;
@@ -151,6 +151,7 @@ FTextureFrameCollector::FTextureFrameCollector(const FAutoRegister& AutoRegister
 	, bIsCaptureEnabled(false)
 {
 	AutoRangeReadback = MakeUnique<FRHIGPUBufferReadback>(TEXT("TextureFrameDebugger.VisibleRangeReadback"));
+	BufferReadback = MakeUnique<FRHIGPUBufferReadback>(TEXT("TextureFrameDebugger.BufferReadback"));
 }
 
 void FTextureFrameCollector::SetCaptureEnabled(bool bEnabled)
@@ -162,6 +163,12 @@ void FTextureFrameCollector::SetSelectedTexture(const FString& TextureName)
 {
 	FScopeLock Lock(&SelectedTextureMutex);
 	SelectedTextureName = TextureName;
+}
+
+void FTextureFrameCollector::SetSelectedBuffer(const FString& BufferName)
+{
+	FScopeLock Lock(&SelectedTextureMutex);
+	SelectedBufferName = BufferName;
 }
 
 void FTextureFrameCollector::SetOverlayOpacity(float InOpacity)
@@ -206,12 +213,34 @@ void FTextureFrameCollector::RequestVisibleRangeUpdate()
 	}
 }
 
+void FTextureFrameCollector::RequestBufferCapture()
+{
+	FScopeLock Lock(&SelectedTextureMutex);
+	if (!SelectedBufferName.IsEmpty())
+	{
+		bPendingBufferCapture = true;
+	}
+}
+
 bool FTextureFrameCollector::ConsumeVisibleRangeUpdateRequest()
 {
 	FScopeLock Lock(&SelectedTextureMutex);
 	const bool bWasPending = bPendingVisibleRangeUpdate;
 	bPendingVisibleRangeUpdate = false;
 	return bWasPending;
+}
+
+bool FTextureFrameCollector::ConsumeBufferCaptureRequest(FString& OutBufferName)
+{
+	FScopeLock Lock(&SelectedTextureMutex);
+	if (!bPendingBufferCapture || SelectedBufferName.IsEmpty())
+	{
+		return false;
+	}
+
+	bPendingBufferCapture = false;
+	OutBufferName = SelectedBufferName;
+	return true;
 }
 
 void FTextureFrameCollector::PollAutoRangeReadback()
@@ -248,10 +277,78 @@ void FTextureFrameCollector::PollAutoRangeReadback()
 	bAutoRangeReadbackPending = false;
 }
 
+void FTextureFrameCollector::PollBufferReadback()
+{
+	if (!BufferReadback.IsValid())
+	{
+		return;
+	}
+
+	bool bIsReady = false;
+	FString CompletedBufferName;
+	uint32 CompletedStride = 0;
+	uint32 CompletedCount = 0;
+	uint32 CompletedNumBytes = 0;
+	{
+		FScopeLock Lock(&SelectedTextureMutex);
+		bIsReady = bBufferReadbackPending && BufferReadback->IsReady();
+		CompletedBufferName = BufferReadbackName;
+		CompletedStride = BufferReadbackStride;
+		CompletedCount = BufferReadbackCount;
+		CompletedNumBytes = BufferReadbackNumBytes;
+	}
+
+	if (!bIsReady)
+	{
+		return;
+	}
+
+	FBufferReadbackResult Result;
+	Result.Name = CompletedBufferName;
+	Result.Stride = CompletedStride;
+	Result.Count = CompletedCount;
+
+	const void* LockedData = BufferReadback->Lock(CompletedNumBytes);
+	if (LockedData && CompletedNumBytes > 0)
+	{
+		Result.Data.SetNumUninitialized(CompletedNumBytes);
+		FMemory::Memcpy(Result.Data.GetData(), LockedData, CompletedNumBytes);
+		Result.bSucceeded = true;
+		Result.StatusMessage = FString::Printf(TEXT("Read back %u bytes from %s."), CompletedNumBytes, *CompletedBufferName);
+	}
+	else
+	{
+		Result.StatusMessage = FString::Printf(TEXT("Readback failed for %s."), *CompletedBufferName);
+	}
+
+	BufferReadback->Unlock();
+
+	{
+		FScopeLock Lock(&SelectedTextureMutex);
+		bBufferReadbackPending = false;
+		BufferReadbackName.Reset();
+		BufferReadbackStride = 0;
+		BufferReadbackCount = 0;
+		BufferReadbackNumBytes = 0;
+	}
+
+	AsyncTask(ENamedThreads::GameThread, [Result = MoveTemp(Result)]() mutable
+	{
+		FTextureFrameDebuggerModule& Module = FModuleManager::GetModuleChecked<FTextureFrameDebuggerModule>("TextureFrameDebugger");
+		Module.UpdateBufferReadback(Result);
+	});
+}
+
 FString FTextureFrameCollector::GetSelectedTextureName() const
 {
 	FScopeLock Lock(&SelectedTextureMutex);
 	return SelectedTextureName;
+}
+
+FString FTextureFrameCollector::GetSelectedBufferName() const
+{
+	FScopeLock Lock(&SelectedTextureMutex);
+	return SelectedBufferName;
 }
 
 void FTextureFrameCollector::GetRangeState(float& OutMin, float& OutMax, bool& bOutHasRange, bool& bOutRangeLocked) const
@@ -322,8 +419,14 @@ void FTextureFrameCollector::SubscribeToPostProcessingPass(
 					return SceneColor;
 				}
 
+				PollBufferReadback();
+
 				TMap<FString, FIntPoint> CollectedInfo;
+				TArray<FBufferDebuggerItem> BufferItems;
 				FRDGTextureRef SelectedTexture = nullptr;
+				FRDGBufferRef SelectedBuffer = nullptr;
+				FString PendingBufferCaptureName;
+				const bool bShouldCaptureBuffer = ConsumeBufferCaptureRequest(PendingBufferCaptureName);
 
 				// Helper to add texture info
 				auto AddTextureIfValid = [&](const FString& Name, FRDGTextureRef Tex)
@@ -372,18 +475,72 @@ void FTextureFrameCollector::SubscribeToPostProcessingPass(
 					}
 				}
 
+				TSet<FString> SeenBufferNames;
+				auto AddBufferIfValid = [&](FRDGBufferRef Buffer)
+				{
+					if (!Buffer)
+					{
+						return;
+					}
+
+					FString BufferName = Buffer->Name;
+					if (BufferName.IsEmpty())
+					{
+						BufferName = TEXT("UnnamedBuffer");
+					}
+
+					if (SeenBufferNames.Contains(BufferName))
+					{
+						return;
+					}
+
+					SeenBufferNames.Add(BufferName);
+
+					FBufferDebuggerItem Item;
+					Item.Name = BufferName;
+					Item.Stride = Buffer->Desc.BytesPerElement;
+					Item.Count = Buffer->Desc.NumElements;
+					Item.NumBytes = Buffer->Desc.GetSize();
+					BufferItems.Add(Item);
+
+					if (!PendingBufferCaptureName.IsEmpty() && BufferName == PendingBufferCaptureName)
+					{
+						SelectedBuffer = Buffer;
+					}
+				};
+
+				EnumerateRDGBuffers(GraphBuilder, [&AddBufferIfValid](FRDGBuffer* Buffer)
+				{
+					AddBufferIfValid(Buffer);
+				});
+
 				if (SelectedTexture && SelectedTexture != SceneColor.Texture)
 				{
 					const FViewInfo& ViewInfo = static_cast<const FViewInfo&>(View);
 					DrawSelectedTexturePreview(GraphBuilder, ViewInfo, SelectedTexture, SceneColor);
 				}
-				
 
-				if (CollectedInfo.Num() > 0)
+				if (bShouldCaptureBuffer && SelectedBuffer && BufferReadback.IsValid())
 				{
-					AsyncTask(ENamedThreads::GameThread, [this, CollectedInfo]()
+					const uint32 NumBytes = SelectedBuffer->Desc.GetSize();
+					AddReadbackBufferPass(GraphBuilder, RDG_EVENT_NAME("TextureFrameDebugger.BufferReadback"), SelectedBuffer,
+						[this, SelectedBuffer, NumBytes](FRHICommandList& RHICmdList)
+						{
+							BufferReadback->EnqueueCopy(RHICmdList, SelectedBuffer->GetRHI(), NumBytes);
+							FScopeLock Lock(&SelectedTextureMutex);
+							bBufferReadbackPending = true;
+							BufferReadbackName = SelectedBuffer->Name;
+							BufferReadbackStride = SelectedBuffer->Desc.BytesPerElement;
+							BufferReadbackCount = SelectedBuffer->Desc.NumElements;
+							BufferReadbackNumBytes = NumBytes;
+						});
+				}
+
+				if (CollectedInfo.Num() > 0 || BufferItems.Num() > 0)
+				{
+					AsyncTask(ENamedThreads::GameThread, [this, CollectedInfo, BufferItems]()
 					{
-						ProcessCollectedTextures(CollectedInfo);
+						ProcessCollectedResources(CollectedInfo, BufferItems);
 					});
 				}
 
@@ -391,7 +548,7 @@ void FTextureFrameCollector::SubscribeToPostProcessingPass(
 			}));
 }
 
-void FTextureFrameCollector::ProcessCollectedTextures(const TMap<FString, FIntPoint>& TextureInfo)
+void FTextureFrameCollector::ProcessCollectedResources(const TMap<FString, FIntPoint>& TextureInfo, const TArray<FBufferDebuggerItem>& BufferItems)
 {
 	TArray<FString> CurrentTextureNames;
 	CurrentTextureNames.Reserve(TextureInfo.Num());
@@ -403,12 +560,13 @@ void FTextureFrameCollector::ProcessCollectedTextures(const TMap<FString, FIntPo
 
 	{
 		FScopeLock Lock(&SelectedTextureMutex);
-		if (CurrentTextureNames == LastCollectedTextureNames)
+		if (CurrentTextureNames == LastCollectedTextureNames && BufferItems == LastCollectedBuffers)
 		{
 			return;
 		}
 
 		LastCollectedTextureNames = CurrentTextureNames;
+		LastCollectedBuffers = BufferItems;
 	}
 
 	TArray<FTextureDebuggerItem> Items;
@@ -422,7 +580,7 @@ void FTextureFrameCollector::ProcessCollectedTextures(const TMap<FString, FIntPo
 	}
 
 	FTextureFrameDebuggerModule& Module = FModuleManager::GetModuleChecked<FTextureFrameDebuggerModule>("TextureFrameDebugger");
-	Module.UpdateUI(Items);
+	Module.UpdateUI(Items, BufferItems);
 }
 
 void FTextureFrameCollector::DrawSelectedTexturePreview(

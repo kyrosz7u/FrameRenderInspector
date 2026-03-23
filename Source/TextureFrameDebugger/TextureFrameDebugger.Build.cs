@@ -22,6 +22,7 @@ public class TextureFrameDebugger : ModuleRules
 				"Slate",
 				"SlateCore",
 				"InputCore",
+				"ApplicationCore",
 				"EditorStyle",
 				"UnrealEd",
 				"Projects",
