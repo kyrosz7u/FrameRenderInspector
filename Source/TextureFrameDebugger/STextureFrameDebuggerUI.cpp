@@ -507,6 +507,79 @@ void STextureFrameDebuggerUI::Construct(const FArguments& InArgs)
 					.SelectionMode(ESelectionMode::None)
 					.ItemHeight(24.0f)
 				]
+				+ SVerticalBox::Slot()
+				.AutoHeight()
+				.Padding(0.0f, 14.0f, 0.0f, 14.0f)
+				[
+					SNew(SSeparator)
+				]
+				+ SVerticalBox::Slot()
+				.AutoHeight()
+				.Padding(0.0f, 0.0f, 0.0f, 10.0f)
+				[
+					SNew(STextBlock)
+					.Text(FText::FromString(TEXT("Options")))
+					.Font(SectionTitleFont)
+					.ColorAndOpacity(FSlateColor(FLinearColor(0.78f, 0.92f, 0.78f)))
+				]
+				+ SVerticalBox::Slot()
+				.AutoHeight()
+				[
+					SNew(SUniformGridPanel)
+					.SlotPadding(FMargin(0.0f, 3.0f))
+					+ SUniformGridPanel::Slot(0, 0)
+					[
+						SNew(STextBlock)
+						.Text(FText::FromString(TEXT("Filter Options")))
+						.Font(ControlFont)
+						.ColorAndOpacity(FSlateColor(FLinearColor(0.65f, 0.92f, 0.65f)))
+					]
+					+ SUniformGridPanel::Slot(1, 0)
+					[
+						SNew(SHorizontalBox)
+						+ SHorizontalBox::Slot()
+						.FillWidth(1.0f)
+						.Padding(0.0f, 0.0f, 8.0f, 0.0f)
+						[
+							SNew(SSearchBox)
+							.OnTextChanged(this, &STextureFrameDebuggerUI::OnRenderOptionFilterChanged)
+						]
+						+ SHorizontalBox::Slot()
+						.AutoWidth()
+						.Padding(0.0f, 0.0f, 6.0f, 0.0f)
+						[
+							SNew(SButton)
+							.Text(FText::FromString(TEXT("<")))
+							.OnClicked(this, &STextureFrameDebuggerUI::OnPreviousRenderOptionsPageClicked)
+						]
+						+ SHorizontalBox::Slot()
+						.AutoWidth()
+						.VAlign(VAlign_Center)
+						.Padding(0.0f, 0.0f, 6.0f, 0.0f)
+						[
+							SNew(STextBlock)
+							.Text(this, &STextureFrameDebuggerUI::GetRenderOptionsPageText)
+							.Font(ControlFont)
+						]
+						+ SHorizontalBox::Slot()
+						.AutoWidth()
+						[
+							SNew(SButton)
+							.Text(FText::FromString(TEXT(">")))
+							.OnClicked(this, &STextureFrameDebuggerUI::OnNextRenderOptionsPageClicked)
+						]
+					]
+				]
+				+ SVerticalBox::Slot()
+				.AutoHeight()
+				.Padding(0.0f, 6.0f, 0.0f, 0.0f)
+				[
+					SAssignNew(RenderOptionsView, SListView<TSharedPtr<FRenderOptionItem>>)
+					.ListItemsSource(&VisibleRenderOptions)
+					.OnGenerateRow(this, &STextureFrameDebuggerUI::OnGenerateRenderOptionRowWidget)
+					.SelectionMode(ESelectionMode::None)
+					.ItemHeight(28.0f)
+				]
 			]
 		]
 	];
@@ -584,6 +657,17 @@ void STextureFrameDebuggerUI::UpdateBufferOptions(const TArray<FBufferDebuggerIt
 	}
 }
 
+void STextureFrameDebuggerUI::UpdateRenderOptions(const TArray<FRenderOptionItem>& RenderOptions)
+{
+	AllRenderOptions.Empty();
+	for (const FRenderOptionItem& RenderOption : RenderOptions)
+	{
+		AllRenderOptions.Add(MakeShared<FRenderOptionItem>(RenderOption));
+	}
+
+	RebuildFilteredRenderOptions();
+}
+
 void STextureFrameDebuggerUI::SetBufferReadbackResult(const FBufferReadbackResult& InReadbackResult)
 {
 	BufferStride = InReadbackResult.Stride;
@@ -609,6 +693,16 @@ void STextureFrameDebuggerUI::SetOnBufferSelected(FOnBufferSelected InOnBufferSe
 void STextureFrameDebuggerUI::SetOnRefreshBuffer(FOnRefreshBuffer InOnRefreshBuffer)
 {
 	OnRefreshBufferDelegate = InOnRefreshBuffer;
+}
+
+void STextureFrameDebuggerUI::SetOnRenderOptionBoolChanged(FOnRenderOptionBoolChanged InOnRenderOptionBoolChanged)
+{
+	OnRenderOptionBoolChangedDelegate = InOnRenderOptionBoolChanged;
+}
+
+void STextureFrameDebuggerUI::SetOnRenderOptionValueCommitted(FOnRenderOptionValueCommitted InOnRenderOptionValueCommitted)
+{
+	OnRenderOptionValueCommittedDelegate = InOnRenderOptionValueCommitted;
 }
 
 void STextureFrameDebuggerUI::SetOnOverlayOpacityChanged(FOnOverlayOpacityChanged InOnOverlayOpacityChanged)
@@ -744,6 +838,45 @@ void STextureFrameDebuggerUI::RebuildBufferRows()
 	}
 }
 
+void STextureFrameDebuggerUI::RebuildFilteredRenderOptions()
+{
+	FilteredRenderOptions.Empty();
+
+	for (const TSharedPtr<FRenderOptionItem>& Option : AllRenderOptions)
+	{
+		if (!Option.IsValid())
+		{
+			continue;
+		}
+
+		if (RenderOptionFilterText.IsEmpty() || Option->Name.Contains(RenderOptionFilterText))
+		{
+			FilteredRenderOptions.Add(Option);
+		}
+	}
+
+	CurrentRenderOptionsPage = 0;
+	RebuildVisibleRenderOptions();
+}
+
+void STextureFrameDebuggerUI::RebuildVisibleRenderOptions()
+{
+	VisibleRenderOptions.Empty();
+	ClampRenderOptionsPage();
+
+	const int32 StartIndex = CurrentRenderOptionsPage * RenderOptionsPerPage;
+	const int32 EndIndex = FMath::Min(StartIndex + RenderOptionsPerPage, FilteredRenderOptions.Num());
+	for (int32 Index = StartIndex; Index < EndIndex; ++Index)
+	{
+		VisibleRenderOptions.Add(FilteredRenderOptions[Index]);
+	}
+
+	if (RenderOptionsView.IsValid())
+	{
+		RenderOptionsView->RequestListRefresh();
+	}
+}
+
 TSharedRef<SWidget> STextureFrameDebuggerUI::GenerateTextureOptionWidget(TSharedPtr<FString> Item) const
 {
 	return SNew(STextBlock)
@@ -801,6 +934,77 @@ TSharedRef<ITableRow> STextureFrameDebuggerUI::OnGenerateBufferRowWidget(TShared
 	}
 
 	return SNew(STableRow<TSharedPtr<FBufferRowEntry>>, OwnerTable)[RowBox];
+}
+
+TSharedRef<ITableRow> STextureFrameDebuggerUI::OnGenerateRenderOptionRowWidget(TSharedPtr<FRenderOptionItem> Item, const TSharedRef<STableViewBase>& OwnerTable)
+{
+	TSharedRef<SHorizontalBox> RowBox = SNew(SHorizontalBox);
+
+	RowBox->AddSlot()
+	.FillWidth(0.65f)
+	.Padding(2.0f, 2.0f, 10.0f, 2.0f)
+	[
+		SNew(STextBlock)
+		.Text(Item.IsValid() ? FText::FromString(Item->Name) : FText::GetEmpty())
+		.Font(FAppStyle::GetFontStyle("PropertyWindow.NormalFont"))
+	];
+
+	if (Item.IsValid() && Item->ValueType == ERenderOptionValueType::Bool)
+	{
+		RowBox->AddSlot()
+		.FillWidth(0.35f)
+		.HAlign(HAlign_Left)
+		.VAlign(VAlign_Center)
+		[
+			SNew(SCheckBox)
+			.IsChecked_Lambda([Item]()
+			{
+				return Item->bBoolValue ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+			})
+			.OnCheckStateChanged_Lambda([this, Item](ECheckBoxState NewState)
+			{
+				if (!Item.IsValid())
+				{
+					return;
+				}
+
+				Item->bBoolValue = (NewState == ECheckBoxState::Checked);
+				Item->ValueText = Item->bBoolValue ? TEXT("1") : TEXT("0");
+				if (OnRenderOptionBoolChangedDelegate.IsBound())
+				{
+					OnRenderOptionBoolChangedDelegate.Execute(Item->Name, Item->bBoolValue);
+				}
+			})
+		];
+	}
+	else
+	{
+		RowBox->AddSlot()
+		.FillWidth(0.35f)
+		[
+			SNew(SEditableTextBox)
+			.Text_Lambda([Item]()
+			{
+				return Item.IsValid() ? FText::FromString(Item->ValueText) : FText::GetEmpty();
+			})
+			.OnTextCommitted_Lambda([this, Item](const FText& NewText, ETextCommit::Type CommitType)
+			{
+				if (!Item.IsValid())
+				{
+					return;
+				}
+
+				Item->ValueText = NewText.ToString();
+				if (OnRenderOptionValueCommittedDelegate.IsBound())
+				{
+					OnRenderOptionValueCommittedDelegate.Execute(Item->Name, Item->ValueText);
+				}
+			})
+			.Font(FAppStyle::GetFontStyle("PropertyWindow.NormalFont"))
+		];
+	}
+
+	return SNew(STableRow<TSharedPtr<FRenderOptionItem>>, OwnerTable)[RowBox];
 }
 
 void STextureFrameDebuggerUI::OnTextureSelectionChanged(TSharedPtr<FString> Item, ESelectInfo::Type SelectInfo)
@@ -881,6 +1085,12 @@ void STextureFrameDebuggerUI::OnBufferFilterChanged(const FText& InFilterText)
 		BufferComboBox->SetSelectedItem(SelectedBufferOption);
 		bIsSyncingBufferSelection = false;
 	}
+}
+
+void STextureFrameDebuggerUI::OnRenderOptionFilterChanged(const FText& InFilterText)
+{
+	RenderOptionFilterText = InFilterText.ToString();
+	RebuildFilteredRenderOptions();
 }
 
 void STextureFrameDebuggerUI::OnBufferFormatSelectionChanged(TSharedPtr<FString> Item, ESelectInfo::Type SelectInfo)
@@ -1050,6 +1260,20 @@ FReply STextureFrameDebuggerUI::OnNextSearchMatchClicked()
 	return FReply::Handled();
 }
 
+FReply STextureFrameDebuggerUI::OnPreviousRenderOptionsPageClicked()
+{
+	CurrentRenderOptionsPage = FMath::Max(CurrentRenderOptionsPage - 1, 0);
+	RebuildVisibleRenderOptions();
+	return FReply::Handled();
+}
+
+FReply STextureFrameDebuggerUI::OnNextRenderOptionsPageClicked()
+{
+	CurrentRenderOptionsPage = FMath::Min(CurrentRenderOptionsPage + 1, GetRenderOptionsPageCount() - 1);
+	RebuildVisibleRenderOptions();
+	return FReply::Handled();
+}
+
 void STextureFrameDebuggerUI::OnRowsTextCommitted(const FText& NewText, ETextCommit::Type CommitType)
 {
 	int32 ParsedValue = 0;
@@ -1162,6 +1386,13 @@ FText STextureFrameDebuggerUI::GetRowsText() const
 FText STextureFrameDebuggerUI::GetColumnsText() const
 {
 	return FText::AsNumber(BufferColumns);
+}
+
+FText STextureFrameDebuggerUI::GetRenderOptionsPageText() const
+{
+	const int32 PageCount = GetRenderOptionsPageCount();
+	const int32 CurrentPage = PageCount > 0 ? CurrentRenderOptionsPage + 1 : 0;
+	return FText::FromString(FString::Printf(TEXT("Page %d/%d"), CurrentPage, PageCount));
 }
 
 FText STextureFrameDebuggerUI::GetOverlayOpacityText() const
@@ -1350,4 +1581,14 @@ void STextureFrameDebuggerUI::JumpToElementIndex(int32 ElementIndex)
 	CurrentBufferPage = ClampedElement / CellsPerPage;
 	ClampBufferPage();
 	RebuildBufferRows();
+}
+
+int32 STextureFrameDebuggerUI::GetRenderOptionsPageCount() const
+{
+	return RenderOptionsPerPage > 0 ? FMath::Max(1, FMath::DivideAndRoundUp(FilteredRenderOptions.Num(), RenderOptionsPerPage)) : 1;
+}
+
+void STextureFrameDebuggerUI::ClampRenderOptionsPage()
+{
+	CurrentRenderOptionsPage = FMath::Clamp(CurrentRenderOptionsPage, 0, GetRenderOptionsPageCount() - 1);
 }

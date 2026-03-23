@@ -17,6 +17,7 @@ public:
 	// Interface to update the texture dropdown
 	void UpdateTextureOptions(const TArray<FString>& TextureNames, const FString& SelectedTextureName);
 	void UpdateBufferOptions(const TArray<FBufferDebuggerItem>& BufferItems, const FString& SelectedBufferName);
+	void UpdateRenderOptions(const TArray<FRenderOptionItem>& RenderOptions);
 	void SetBufferReadbackResult(const FBufferReadbackResult& InReadbackResult);
 	void SetOverlaySettings(float InOpacity, float InCoverage);
 	void SetRangeState(float InMin, float InMax, bool bInHasRange, bool bInRangeLocked);
@@ -25,6 +26,8 @@ public:
 	DECLARE_DELEGATE_OneParam(FOnTextureSelected, const FString& /*TextureName*/);
 	DECLARE_DELEGATE_OneParam(FOnBufferSelected, const FString& /*BufferName*/);
 	DECLARE_DELEGATE(FOnRefreshBuffer);
+	DECLARE_DELEGATE_TwoParams(FOnRenderOptionBoolChanged, const FString& /*OptionName*/, bool /*bValue*/);
+	DECLARE_DELEGATE_TwoParams(FOnRenderOptionValueCommitted, const FString& /*OptionName*/, const FString& /*ValueText*/);
 	DECLARE_DELEGATE_OneParam(FOnOverlayOpacityChanged, float /*Opacity*/);
 	DECLARE_DELEGATE_OneParam(FOnOverlayCoverageChanged, float /*Coverage*/);
 	DECLARE_DELEGATE(FOnComputeVisibleRange);
@@ -33,6 +36,8 @@ public:
 	void SetOnTextureSelected(FOnTextureSelected InOnTextureSelected);
 	void SetOnBufferSelected(FOnBufferSelected InOnBufferSelected);
 	void SetOnRefreshBuffer(FOnRefreshBuffer InOnRefreshBuffer);
+	void SetOnRenderOptionBoolChanged(FOnRenderOptionBoolChanged InOnRenderOptionBoolChanged);
+	void SetOnRenderOptionValueCommitted(FOnRenderOptionValueCommitted InOnRenderOptionValueCommitted);
 	void SetOnOverlayOpacityChanged(FOnOverlayOpacityChanged InOnOverlayOpacityChanged);
 	void SetOnOverlayCoverageChanged(FOnOverlayCoverageChanged InOnOverlayCoverageChanged);
 	void SetOnComputeVisibleRange(FOnComputeVisibleRange InOnComputeVisibleRange);
@@ -84,6 +89,14 @@ private:
 	TSharedPtr<class SListView<TSharedPtr<FBufferRowEntry>>> BufferRowsView;
 	bool bIsSyncingBufferSelection = false;
 
+	TArray<TSharedPtr<FRenderOptionItem>> AllRenderOptions;
+	TArray<TSharedPtr<FRenderOptionItem>> FilteredRenderOptions;
+	TArray<TSharedPtr<FRenderOptionItem>> VisibleRenderOptions;
+	TSharedPtr<class SListView<TSharedPtr<FRenderOptionItem>>> RenderOptionsView;
+	FString RenderOptionFilterText;
+	int32 RenderOptionsPerPage = 24;
+	int32 CurrentRenderOptionsPage = 0;
+
 	float OverlayOpacity = 1.0f;
 	float OverlayCoverage = 0.5f;
 	float RangeMin = 0.0f;
@@ -93,6 +106,8 @@ private:
 	FOnTextureSelected OnTextureSelectedDelegate;
 	FOnBufferSelected OnBufferSelectedDelegate;
 	FOnRefreshBuffer OnRefreshBufferDelegate;
+	FOnRenderOptionBoolChanged OnRenderOptionBoolChangedDelegate;
+	FOnRenderOptionValueCommitted OnRenderOptionValueCommittedDelegate;
 	FOnOverlayOpacityChanged OnOverlayOpacityChangedDelegate;
 	FOnOverlayCoverageChanged OnOverlayCoverageChangedDelegate;
 	FOnComputeVisibleRange OnComputeVisibleRangeDelegate;
@@ -102,14 +117,18 @@ private:
 	void RebuildFilteredOptions();
 	void RebuildFilteredBufferOptions();
 	void RebuildBufferRows();
+	void RebuildFilteredRenderOptions();
+	void RebuildVisibleRenderOptions();
 	TSharedRef<SWidget> GenerateTextureOptionWidget(TSharedPtr<FString> Item) const;
 	TSharedRef<SWidget> GenerateBufferOptionWidget(TSharedPtr<FBufferDebuggerItem> Item) const;
 	TSharedRef<SWidget> GenerateBufferFormatOptionWidget(TSharedPtr<FString> Item) const;
 	TSharedRef<class ITableRow> OnGenerateBufferRowWidget(TSharedPtr<FBufferRowEntry> Item, const TSharedRef<class STableViewBase>& OwnerTable);
+	TSharedRef<class ITableRow> OnGenerateRenderOptionRowWidget(TSharedPtr<FRenderOptionItem> Item, const TSharedRef<class STableViewBase>& OwnerTable);
 	void OnTextureSelectionChanged(TSharedPtr<FString> Item, ESelectInfo::Type SelectInfo);
 	void OnTextureFilterChanged(const FText& InFilterText);
 	void OnBufferSelectionChanged(TSharedPtr<FBufferDebuggerItem> Item, ESelectInfo::Type SelectInfo);
 	void OnBufferFilterChanged(const FText& InFilterText);
+	void OnRenderOptionFilterChanged(const FText& InFilterText);
 	void OnBufferFormatSelectionChanged(TSharedPtr<FString> Item, ESelectInfo::Type SelectInfo);
 	void OnOverlayOpacitySliderChanged(float NewValue);
 	void OnOverlayCoverageSliderChanged(float NewValue);
@@ -121,6 +140,8 @@ private:
 	FReply OnGoToBufferAddressClicked();
 	FReply OnSearchBufferClicked();
 	FReply OnNextSearchMatchClicked();
+	FReply OnPreviousRenderOptionsPageClicked();
+	FReply OnNextRenderOptionsPageClicked();
 	void OnRowsTextCommitted(const FText& NewText, ETextCommit::Type CommitType);
 	void OnColumnsTextCommitted(const FText& NewText, ETextCommit::Type CommitType);
 	void OnJumpAddressTextChanged(const FText& NewText);
@@ -137,6 +158,7 @@ private:
 	FText GetBufferStatusText() const;
 	FText GetRowsText() const;
 	FText GetColumnsText() const;
+	FText GetRenderOptionsPageText() const;
 	FText GetOverlayOpacityText() const;
 	FText GetOverlayCoverageText() const;
 	FText GetRangeMinText() const;
@@ -155,4 +177,6 @@ private:
 	bool TryParseSearchWord(const FString& InText, uint32& OutValue) const;
 	void RebuildSearchMatches();
 	void JumpToElementIndex(int32 ElementIndex);
+	int32 GetRenderOptionsPageCount() const;
+	void ClampRenderOptionsPage();
 };

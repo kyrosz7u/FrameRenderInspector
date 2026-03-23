@@ -19,11 +19,14 @@ public:
 	// This should be called on the Game Thread
 	void UpdateUI(const TArray<FTextureDebuggerItem>& TextureItems, const TArray<FBufferDebuggerItem>& BufferItems);
 	void UpdateBufferReadback(const FBufferReadbackResult& ReadbackResult);
+	void RefreshRenderOptions();
 
 	// Called when a texture is selected in the UI
 	void OnTextureSelected(const FString& TextureName);
 	void OnBufferSelected(const FString& BufferName);
 	void OnRefreshBufferRequested();
+	void OnRenderOptionBoolChanged(const FString& OptionName, bool bValue);
+	void OnRenderOptionValueCommitted(const FString& OptionName, const FString& ValueText);
 	void OnOverlayOpacityChanged(float NewOpacity);
 	void OnOverlayCoverageChanged(float NewCoverage);
 	void OnComputeVisibleRangeRequested();
@@ -39,6 +42,7 @@ private:
 	TSharedPtr<class FTextureFrameCollector> Collector;
 	TArray<FString> CachedTextureNames;
 	TArray<FBufferDebuggerItem> CachedBufferItems;
+	TArray<FRenderOptionItem> CachedRenderOptions;
 	FString SelectedTextureName;
 	FString SelectedBufferName;
 	FBufferReadbackResult LatestBufferReadback;

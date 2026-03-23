@@ -53,6 +53,8 @@ TSharedRef<SDockTab> FTextureFrameDebuggerModule::OnSpawnPluginTab(const FSpawnT
 	DebuggerUI->SetOnTextureSelected(STextureFrameDebuggerUI::FOnTextureSelected::CreateRaw(this, &FTextureFrameDebuggerModule::OnTextureSelected));
 	DebuggerUI->SetOnBufferSelected(STextureFrameDebuggerUI::FOnBufferSelected::CreateRaw(this, &FTextureFrameDebuggerModule::OnBufferSelected));
 	DebuggerUI->SetOnRefreshBuffer(STextureFrameDebuggerUI::FOnRefreshBuffer::CreateRaw(this, &FTextureFrameDebuggerModule::OnRefreshBufferRequested));
+	DebuggerUI->SetOnRenderOptionBoolChanged(STextureFrameDebuggerUI::FOnRenderOptionBoolChanged::CreateRaw(this, &FTextureFrameDebuggerModule::OnRenderOptionBoolChanged));
+	DebuggerUI->SetOnRenderOptionValueCommitted(STextureFrameDebuggerUI::FOnRenderOptionValueCommitted::CreateRaw(this, &FTextureFrameDebuggerModule::OnRenderOptionValueCommitted));
 	DebuggerUI->SetOnOverlayOpacityChanged(STextureFrameDebuggerUI::FOnOverlayOpacityChanged::CreateRaw(this, &FTextureFrameDebuggerModule::OnOverlayOpacityChanged));
 	DebuggerUI->SetOnOverlayCoverageChanged(STextureFrameDebuggerUI::FOnOverlayCoverageChanged::CreateRaw(this, &FTextureFrameDebuggerModule::OnOverlayCoverageChanged));
 	DebuggerUI->SetOnComputeVisibleRange(STextureFrameDebuggerUI::FOnComputeVisibleRange::CreateRaw(this, &FTextureFrameDebuggerModule::OnComputeVisibleRangeRequested));
@@ -60,6 +62,7 @@ TSharedRef<SDockTab> FTextureFrameDebuggerModule::OnSpawnPluginTab(const FSpawnT
 	DebuggerUI->SetOnRangeEdited(STextureFrameDebuggerUI::FOnRangeEdited::CreateRaw(this, &FTextureFrameDebuggerModule::OnRangeEdited));
 	DebuggerUI->UpdateTextureOptions(CachedTextureNames, SelectedTextureName);
 	DebuggerUI->UpdateBufferOptions(CachedBufferItems, SelectedBufferName);
+	DebuggerUI->UpdateRenderOptions(CachedRenderOptions);
 	DebuggerUI->SetOverlaySettings(OverlayOpacity, OverlayCoverage);
 	DebuggerUI->SetRangeState(CurrentRangeMin, CurrentRangeMax, bHasRange, bRangeLocked);
 	if (bHasBufferReadback)
@@ -77,6 +80,7 @@ TSharedRef<SDockTab> FTextureFrameDebuggerModule::OnSpawnPluginTab(const FSpawnT
 		Collector->SetRangeLocked(bRangeLocked);
 	}
 
+	RefreshRenderOptions();
 	SetRDGImmediateModeEnabled(true);
 
 	TSharedRef<SDockTab> NewTab = SNew(SDockTab)
@@ -168,6 +172,59 @@ void FTextureFrameDebuggerModule::UpdateBufferReadback(const FBufferReadbackResu
 	}
 }
 
+void FTextureFrameDebuggerModule::RefreshRenderOptions()
+{
+	CachedRenderOptions.Empty();
+
+	IConsoleManager::Get().ForEachConsoleObjectThatStartsWith(
+		FConsoleObjectVisitor::CreateLambda([this](const TCHAR* Name, IConsoleObject* Obj)
+		{
+			if (!Name || !Obj)
+			{
+				return;
+			}
+
+			IConsoleVariable* CVar = Obj->AsVariable();
+			if (!CVar)
+			{
+				return;
+			}
+
+			FRenderOptionItem Item;
+			Item.Name = Name;
+
+			if (Obj->IsVariableBool())
+			{
+				Item.ValueType = ERenderOptionValueType::Bool;
+				Item.bBoolValue = CVar->GetBool();
+				Item.ValueText = Item.bBoolValue ? TEXT("1") : TEXT("0");
+			}
+			else if (Obj->IsVariableInt())
+			{
+				Item.ValueType = ERenderOptionValueType::Int;
+				Item.ValueText = FString::Printf(TEXT("%d"), CVar->GetInt());
+			}
+			else
+			{
+				Item.ValueType = ERenderOptionValueType::Float;
+				Item.ValueText = FString::Printf(TEXT("%g"), CVar->GetFloat());
+			}
+
+			CachedRenderOptions.Add(MoveTemp(Item));
+		}),
+		TEXT("r."));
+
+	CachedRenderOptions.Sort([](const FRenderOptionItem& A, const FRenderOptionItem& B)
+	{
+		return A.Name < B.Name;
+	});
+
+	if (DebuggerUI.IsValid())
+	{
+		DebuggerUI->UpdateRenderOptions(CachedRenderOptions);
+	}
+}
+
 void FTextureFrameDebuggerModule::OnTextureSelected(const FString& TextureName)
 {
 	SelectedTextureName = TextureName;
@@ -194,6 +251,26 @@ void FTextureFrameDebuggerModule::OnRefreshBufferRequested()
 	{
 		Collector->RequestBufferCapture();
 	}
+}
+
+void FTextureFrameDebuggerModule::OnRenderOptionBoolChanged(const FString& OptionName, bool bValue)
+{
+	if (IConsoleVariable* CVar = IConsoleManager::Get().FindConsoleVariable(*OptionName))
+	{
+		CVar->Set(bValue ? 1 : 0, ECVF_SetByConsole);
+	}
+
+	RefreshRenderOptions();
+}
+
+void FTextureFrameDebuggerModule::OnRenderOptionValueCommitted(const FString& OptionName, const FString& ValueText)
+{
+	if (IConsoleVariable* CVar = IConsoleManager::Get().FindConsoleVariable(*OptionName))
+	{
+		CVar->Set(*ValueText, ECVF_SetByConsole);
+	}
+
+	RefreshRenderOptions();
 }
 
 void FTextureFrameDebuggerModule::OnOverlayOpacityChanged(float NewOpacity)
@@ -289,6 +366,8 @@ void FTextureFrameDebuggerModule::EnsureCollectorInitialized()
 			}
 		}
 	}
+
+	RefreshRenderOptions();
 }
 
 #undef LOCTEXT_NAMESPACE
