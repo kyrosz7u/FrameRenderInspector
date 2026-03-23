@@ -20,6 +20,11 @@ FText SFrameRenderInspectorUI::GetOverlayCoverageText() const
 	return FText::FromString(FString::Printf(TEXT("%.2f"), OverlayCoverage));
 }
 
+ECheckBoxState SFrameRenderInspectorUI::GetVisualizeInViewportCheckState() const
+{
+	return bVisualizeInViewport ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+}
+
 FText SFrameRenderInspectorUI::GetRangeMinText() const
 {
 	return bHasRange ? FText::FromString(FString::Printf(TEXT("%g"), RangeMin)) : FText::FromString(TEXT("N/A"));

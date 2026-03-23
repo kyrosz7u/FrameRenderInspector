@@ -204,11 +204,12 @@ void FFrameRenderInspectorCollector::DrawSelectedTexturePreview(
 
 	const FIntPoint SourceExtent = SelectedTexture->Desc.Extent;
 	const FIntRect SceneViewRect = SceneColor.ViewRect;
+	bool bShouldVisualizeInViewport = true;
 	float CurrentOverlayOpacity = 1.0f;
 	float CurrentOverlayCoverage = 0.5f;
 	float CurrentAutoRangeMin = 0.0f;
 	float CurrentAutoRangeMax = 1.0f;
-	GetOverlaySettings(CurrentOverlayOpacity, CurrentOverlayCoverage, CurrentAutoRangeMin, CurrentAutoRangeMax);
+	GetOverlaySettings(bShouldVisualizeInViewport, CurrentOverlayOpacity, CurrentOverlayCoverage, CurrentAutoRangeMin, CurrentAutoRangeMax);
 	const bool bVisualizeAsSingleChannel = IsSingleChannelDebugFormat(SelectedTexture->Desc.Format);
 	bool bApplyRangeNormalization = false;
 	{
@@ -221,30 +222,34 @@ void FFrameRenderInspectorCollector::DrawSelectedTexturePreview(
 		return;
 	}
 
-	const FIntPoint MaxPreviewSize(
-		FMath::Clamp(FMath::FloorToInt(SceneViewRect.Width() * CurrentOverlayCoverage), 1, SceneViewRect.Width()),
-		FMath::Clamp(FMath::FloorToInt(SceneViewRect.Height() * CurrentOverlayCoverage), 1, SceneViewRect.Height()));
+	FIntRect AvailableTextureRect = SceneViewRect;
+	AvailableTextureRect.Clip(FIntRect(FIntPoint::ZeroValue, SourceExtent));
 
-	FIntRect InputRect(
-		SceneViewRect.Min.X,
-		SceneViewRect.Max.Y - MaxPreviewSize.Y,
-		SceneViewRect.Min.X + MaxPreviewSize.X,
-		SceneViewRect.Max.Y);
-
-	InputRect.Clip(FIntRect(FIntPoint::ZeroValue, SourceExtent));
-
-	if (InputRect.Width() <= 0 || InputRect.Height() <= 0)
+	if (AvailableTextureRect.Width() <= 0 || AvailableTextureRect.Height() <= 0)
 	{
 		return;
 	}
 
+	const FIntPoint PreviewSize(
+		FMath::Clamp(FMath::FloorToInt(SceneViewRect.Width() * CurrentOverlayCoverage), 1, AvailableTextureRect.Width()),
+		FMath::Clamp(FMath::FloorToInt(SceneViewRect.Height() * CurrentOverlayCoverage), 1, AvailableTextureRect.Height()));
+
+	if (PreviewSize.X <= 0 || PreviewSize.Y <= 0)
+	{
+		return;
+	}
+
+	const FIntRect InputRect(
+		AvailableTextureRect.Min.X,
+		AvailableTextureRect.Max.Y - PreviewSize.Y,
+		AvailableTextureRect.Min.X + PreviewSize.X,
+		AvailableTextureRect.Max.Y);
+
 	const FIntRect OutputRect(
 		SceneViewRect.Min.X,
-		SceneViewRect.Max.Y - InputRect.Height(),
-		SceneViewRect.Min.X + InputRect.Width(),
+		SceneViewRect.Max.Y - PreviewSize.Y,
+		SceneViewRect.Min.X + PreviewSize.X,
 		SceneViewRect.Max.Y);
-
-	const FIntPoint PreviewSize(InputRect.Width(), InputRect.Height());
 	bool bShouldReportPreviewSize = false;
 	{
 		FScopeLock Lock(&SelectedTextureMutex);
@@ -344,16 +349,19 @@ void FFrameRenderInspectorCollector::DrawSelectedTexturePreview(
 			});
 	}
 
-	AddFrameRenderInspectorOverlayPass(
-		GraphBuilder,
-		View,
-		SelectedTexture,
-		InputRect,
-		SceneColor.Texture,
-		OutputRect,
-		CurrentOverlayOpacity,
-		bApplyRangeNormalization,
-		bVisualizeAsSingleChannel,
-		CurrentAutoRangeMin,
-		CurrentAutoRangeMax);
+	if (bShouldVisualizeInViewport)
+	{
+		AddFrameRenderInspectorOverlayPass(
+			GraphBuilder,
+			View,
+			SelectedTexture,
+			InputRect,
+			SceneColor.Texture,
+			OutputRect,
+			CurrentOverlayOpacity,
+			bApplyRangeNormalization,
+			bVisualizeAsSingleChannel,
+			CurrentAutoRangeMin,
+			CurrentAutoRangeMax);
+	}
 }

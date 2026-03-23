@@ -24,6 +24,12 @@ void FFrameRenderInspectorCollector::SetSelectedBuffer(const FString& BufferName
 	SelectedBufferName = BufferName;
 }
 
+void FFrameRenderInspectorCollector::SetVisualizeInViewport(bool bEnabled)
+{
+	FScopeLock Lock(&SelectedTextureMutex);
+	bVisualizeInViewport = bEnabled;
+}
+
 void FFrameRenderInspectorCollector::SetOverlayOpacity(float InOpacity)
 {
 	FScopeLock Lock(&SelectedTextureMutex);
@@ -140,9 +146,10 @@ void FFrameRenderInspectorCollector::GetRangeState(float& OutMin, float& OutMax,
 	bOutRangeLocked = bRangeLocked;
 }
 
-void FFrameRenderInspectorCollector::GetOverlaySettings(float& OutOpacity, float& OutCoverage, float& OutAutoRangeMin, float& OutAutoRangeMax) const
+void FFrameRenderInspectorCollector::GetOverlaySettings(bool& bOutVisualizeInViewport, float& OutOpacity, float& OutCoverage, float& OutAutoRangeMin, float& OutAutoRangeMax) const
 {
 	FScopeLock Lock(&SelectedTextureMutex);
+	bOutVisualizeInViewport = bVisualizeInViewport;
 	OutOpacity = OverlayOpacity;
 	OutCoverage = OverlayCoverage;
 	OutAutoRangeMin = AutoRangeMin;

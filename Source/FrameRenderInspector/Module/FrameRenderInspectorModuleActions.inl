@@ -66,6 +66,16 @@ void FFrameRenderInspectorModule::OnOverlayCoverageChanged(float NewCoverage)
 	}
 }
 
+void FFrameRenderInspectorModule::OnVisualizeInViewportChanged(bool bEnabled)
+{
+	bVisualizeInViewport = bEnabled;
+
+	if (Collector.IsValid())
+	{
+		Collector->SetVisualizeInViewport(bVisualizeInViewport);
+	}
+}
+
 void FFrameRenderInspectorModule::OnComputeVisibleRangeRequested()
 {
 	if (Collector.IsValid())

@@ -55,6 +55,7 @@ bool FFrameRenderInspectorModule::LoadSettingsFromFile(const FString& ConfigPath
 	GetConfigString(TEXT("SelectedBuffer"), SelectedBufferName);
 	GetConfigFloat(TEXT("OverlayOpacity"), OverlayOpacity);
 	GetConfigFloat(TEXT("OverlayCoverage"), OverlayCoverage);
+	GetConfigBool(TEXT("VisualizeInViewport"), bVisualizeInViewport);
 	GetConfigFloat(TEXT("RangeMin"), CurrentRangeMin);
 	GetConfigFloat(TEXT("RangeMax"), CurrentRangeMax);
 	GetConfigBool(TEXT("HasRange"), bHasRange);
@@ -102,6 +103,7 @@ bool FFrameRenderInspectorModule::SaveSettingsToFile(const FString& ConfigPath)
 	SettingsSection.Remove(TEXT("SelectedBuffer"));
 	SettingsSection.Remove(TEXT("OverlayOpacity"));
 	SettingsSection.Remove(TEXT("OverlayCoverage"));
+	SettingsSection.Remove(TEXT("VisualizeInViewport"));
 	SettingsSection.Remove(TEXT("RangeMin"));
 	SettingsSection.Remove(TEXT("RangeMax"));
 	SettingsSection.Remove(TEXT("HasRange"));
@@ -115,6 +117,7 @@ bool FFrameRenderInspectorModule::SaveSettingsToFile(const FString& ConfigPath)
 	SettingsSection.Add(TEXT("SelectedBuffer"), FConfigValue(SelectedBufferName));
 	SettingsSection.Add(TEXT("OverlayOpacity"), FConfigValue(FString::SanitizeFloat(OverlayOpacity)));
 	SettingsSection.Add(TEXT("OverlayCoverage"), FConfigValue(FString::SanitizeFloat(OverlayCoverage)));
+	SettingsSection.Add(TEXT("VisualizeInViewport"), FConfigValue(bVisualizeInViewport ? TEXT("True") : TEXT("False")));
 	SettingsSection.Add(TEXT("RangeMin"), FConfigValue(FString::SanitizeFloat(CurrentRangeMin)));
 	SettingsSection.Add(TEXT("RangeMax"), FConfigValue(FString::SanitizeFloat(CurrentRangeMax)));
 	SettingsSection.Add(TEXT("HasRange"), FConfigValue(bHasRange ? TEXT("True") : TEXT("False")));
@@ -144,6 +147,7 @@ void FFrameRenderInspectorModule::ApplySettingsToRuntime()
 	{
 		Collector->SetSelectedTexture(SelectedTextureName);
 		Collector->SetSelectedBuffer(SelectedBufferName);
+		Collector->SetVisualizeInViewport(bVisualizeInViewport);
 		Collector->SetOverlayOpacity(OverlayOpacity);
 		Collector->SetOverlayCoverage(OverlayCoverage);
 		Collector->SetRangeLocked(bRangeLocked);
@@ -160,6 +164,7 @@ void FFrameRenderInspectorModule::ApplySettingsToRuntime()
 		DebuggerUI->UpdateRenderOptions(CachedRenderOptions);
 		DebuggerUI->SetInspectorModeValue(InspectorModeValue);
 		DebuggerUI->SetBufferViewSettings(BufferRowsSetting, BufferColumnsSetting, BufferFormatName);
+		DebuggerUI->SetVisualizeInViewport(bVisualizeInViewport);
 		DebuggerUI->SetOverlaySettings(OverlayOpacity, OverlayCoverage);
 		DebuggerUI->SetRangeState(CurrentRangeMin, CurrentRangeMax, bHasRange, bRangeLocked);
 	}

@@ -26,6 +26,7 @@ public:
 	void SetInspectorModeValue(int32 InModeValue);
 	void SetBufferViewSettings(int32 InRows, int32 InColumns, const FString& InFormatName);
 	void SetOverlaySettings(float InOpacity, float InCoverage);
+	void SetVisualizeInViewport(bool bInVisualizeInViewport);
 	void SetRangeState(float InMin, float InMax, bool bInHasRange, bool bInRangeLocked);
 	int32 GetInspectorModeValue() const;
 	int32 GetBufferRowsSetting() const;
@@ -40,6 +41,7 @@ public:
 	DECLARE_DELEGATE_TwoParams(FOnRenderOptionValueCommitted, const FString& /*OptionName*/, const FString& /*ValueText*/);
 	DECLARE_DELEGATE_OneParam(FOnOverlayOpacityChanged, float /*Opacity*/);
 	DECLARE_DELEGATE_OneParam(FOnOverlayCoverageChanged, float /*Coverage*/);
+	DECLARE_DELEGATE_OneParam(FOnVisualizeInViewportChanged, bool /*bEnabled*/);
 	DECLARE_DELEGATE(FOnComputeVisibleRange);
 	DECLARE_DELEGATE_TwoParams(FOnRequestTexturePixelSample, int32 /*PixelX*/, int32 /*PixelY*/);
 	DECLARE_DELEGATE(FOnBeginViewportTexturePick);
@@ -52,6 +54,7 @@ public:
 	void SetOnRenderOptionValueCommitted(FOnRenderOptionValueCommitted InOnRenderOptionValueCommitted);
 	void SetOnOverlayOpacityChanged(FOnOverlayOpacityChanged InOnOverlayOpacityChanged);
 	void SetOnOverlayCoverageChanged(FOnOverlayCoverageChanged InOnOverlayCoverageChanged);
+	void SetOnVisualizeInViewportChanged(FOnVisualizeInViewportChanged InOnVisualizeInViewportChanged);
 	void SetOnComputeVisibleRange(FOnComputeVisibleRange InOnComputeVisibleRange);
 	void SetOnRequestTexturePixelSample(FOnRequestTexturePixelSample InOnRequestTexturePixelSample);
 	void SetOnBeginViewportTexturePick(FOnBeginViewportTexturePick InOnBeginViewportTexturePick);
@@ -126,6 +129,7 @@ private:
 
 	float OverlayOpacity = 1.0f;
 	float OverlayCoverage = 0.5f;
+	bool bVisualizeInViewport = true;
 	FIntPoint TexturePreviewSize = FIntPoint::ZeroValue;
 	float RangeMin = 0.0f;
 	float RangeMax = 1.0f;
@@ -139,6 +143,7 @@ private:
 	FOnRenderOptionValueCommitted OnRenderOptionValueCommittedDelegate;
 	FOnOverlayOpacityChanged OnOverlayOpacityChangedDelegate;
 	FOnOverlayCoverageChanged OnOverlayCoverageChangedDelegate;
+	FOnVisualizeInViewportChanged OnVisualizeInViewportChangedDelegate;
 	FOnComputeVisibleRange OnComputeVisibleRangeDelegate;
 	FOnRequestTexturePixelSample OnRequestTexturePixelSampleDelegate;
 	FOnBeginViewportTexturePick OnBeginViewportTexturePickDelegate;
@@ -178,6 +183,7 @@ private:
 	void OnBufferFormatSelectionChanged(TSharedPtr<FString> Item, ESelectInfo::Type SelectInfo);
 	void OnOverlayOpacitySliderChanged(float NewValue);
 	void OnOverlayCoverageSliderChanged(float NewValue);
+	void OnVisualizeInViewportCheckStateChanged(ECheckBoxState NewState);
 	FReply OnComputeVisibleRangeClicked();
 	FReply OnRefreshBufferClicked();
 	FReply OnCopyBufferPageClicked();
@@ -207,6 +213,7 @@ private:
 	FText GetRenderOptionsPageText() const;
 	FText GetOverlayOpacityText() const;
 	FText GetOverlayCoverageText() const;
+	ECheckBoxState GetVisualizeInViewportCheckState() const;
 	FText GetRangeMinText() const;
 	FText GetRangeMaxText() const;
 	ECheckBoxState GetRangeLockCheckState() const;

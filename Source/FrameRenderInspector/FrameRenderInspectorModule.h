@@ -32,6 +32,7 @@ public:
 	void OnRenderOptionValueCommitted(const FString& OptionName, const FString& ValueText);
 	void OnOverlayOpacityChanged(float NewOpacity);
 	void OnOverlayCoverageChanged(float NewCoverage);
+	void OnVisualizeInViewportChanged(bool bEnabled);
 	void OnComputeVisibleRangeRequested();
 	void OnRequestTexturePixelSample(int32 PixelX, int32 PixelY);
 	void OnBeginViewportTexturePick();
@@ -66,6 +67,7 @@ private:
 	bool bHasTexturePixelSample = false;
 	float OverlayOpacity = 1.0f;
 	float OverlayCoverage = 0.5f;
+	bool bVisualizeInViewport = true;
 	int32 InspectorModeValue = 0;
 	int32 BufferRowsSetting = 8;
 	int32 BufferColumnsSetting = 16;

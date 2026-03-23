@@ -51,10 +51,27 @@ TSharedRef<SWidget> SFrameRenderInspectorUI::BuildTextureSection()
 			+ SUniformGridPanel::Slot(0, 2)
 			[
 				SNew(STextBlock)
-				.Text(FText::FromString(TEXT("Overlay Opacity")))
+				.Text(FText::FromString(TEXT("Visualize In Viewport")))
 				.Font(ControlFont)
 			]
 			+ SUniformGridPanel::Slot(1, 2)
+			[
+				SNew(SCheckBox)
+				.IsChecked(this, &SFrameRenderInspectorUI::GetVisualizeInViewportCheckState)
+				.OnCheckStateChanged(this, &SFrameRenderInspectorUI::OnVisualizeInViewportCheckStateChanged)
+				[
+					SNew(STextBlock)
+					.Text(FText::FromString(TEXT("Enable DebuggerRT Overlay")))
+					.Font(ControlFont)
+				]
+			]
+			+ SUniformGridPanel::Slot(0, 3)
+			[
+				SNew(STextBlock)
+				.Text(FText::FromString(TEXT("Overlay Opacity")))
+				.Font(ControlFont)
+			]
+			+ SUniformGridPanel::Slot(1, 3)
 			[
 				SNew(SVerticalBox)
 				+ SVerticalBox::Slot()
@@ -73,13 +90,13 @@ TSharedRef<SWidget> SFrameRenderInspectorUI::BuildTextureSection()
 					.Font(ControlFont)
 				]
 			]
-			+ SUniformGridPanel::Slot(0, 3)
+			+ SUniformGridPanel::Slot(0, 4)
 			[
 				SNew(STextBlock)
 				.Text(FText::FromString(TEXT("Overlay Coverage")))
 				.Font(ControlFont)
 			]
-			+ SUniformGridPanel::Slot(1, 3)
+			+ SUniformGridPanel::Slot(1, 4)
 			[
 				SNew(SVerticalBox)
 				+ SVerticalBox::Slot()
@@ -98,13 +115,13 @@ TSharedRef<SWidget> SFrameRenderInspectorUI::BuildTextureSection()
 					.Font(ControlFont)
 				]
 			]
-			+ SUniformGridPanel::Slot(0, 4)
+			+ SUniformGridPanel::Slot(0, 5)
 			[
 				SNew(STextBlock)
 				.Text(FText::FromString(TEXT("Range")))
 				.Font(ControlFont)
 			]
-			+ SUniformGridPanel::Slot(1, 4)
+			+ SUniformGridPanel::Slot(1, 5)
 			[
 				SNew(SHorizontalBox)
 				+ SHorizontalBox::Slot()
@@ -154,13 +171,13 @@ TSharedRef<SWidget> SFrameRenderInspectorUI::BuildTextureSection()
 					]
 				]
 			]
-			+ SUniformGridPanel::Slot(0, 5)
+			+ SUniformGridPanel::Slot(0, 6)
 			[
 				SNew(STextBlock)
 				.Text(FText::FromString(TEXT("Visible Range")))
 				.Font(ControlFont)
 			]
-			+ SUniformGridPanel::Slot(1, 5)
+			+ SUniformGridPanel::Slot(1, 6)
 			[
 				SNew(SHorizontalBox)
 				+ SHorizontalBox::Slot()

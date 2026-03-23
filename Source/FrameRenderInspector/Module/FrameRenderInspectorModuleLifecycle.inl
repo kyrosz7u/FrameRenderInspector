@@ -75,6 +75,7 @@ TSharedRef<SDockTab> FFrameRenderInspectorModule::OnSpawnPluginTab(const FSpawnT
 	DebuggerUI->SetOnRenderOptionValueCommitted(SFrameRenderInspectorUI::FOnRenderOptionValueCommitted::CreateRaw(this, &FFrameRenderInspectorModule::OnRenderOptionValueCommitted));
 	DebuggerUI->SetOnOverlayOpacityChanged(SFrameRenderInspectorUI::FOnOverlayOpacityChanged::CreateRaw(this, &FFrameRenderInspectorModule::OnOverlayOpacityChanged));
 	DebuggerUI->SetOnOverlayCoverageChanged(SFrameRenderInspectorUI::FOnOverlayCoverageChanged::CreateRaw(this, &FFrameRenderInspectorModule::OnOverlayCoverageChanged));
+	DebuggerUI->SetOnVisualizeInViewportChanged(SFrameRenderInspectorUI::FOnVisualizeInViewportChanged::CreateRaw(this, &FFrameRenderInspectorModule::OnVisualizeInViewportChanged));
 	DebuggerUI->SetOnComputeVisibleRange(SFrameRenderInspectorUI::FOnComputeVisibleRange::CreateRaw(this, &FFrameRenderInspectorModule::OnComputeVisibleRangeRequested));
 	DebuggerUI->SetOnRequestTexturePixelSample(SFrameRenderInspectorUI::FOnRequestTexturePixelSample::CreateRaw(this, &FFrameRenderInspectorModule::OnRequestTexturePixelSample));
 	DebuggerUI->SetOnBeginViewportTexturePick(SFrameRenderInspectorUI::FOnBeginViewportTexturePick::CreateRaw(this, &FFrameRenderInspectorModule::OnBeginViewportTexturePick));
@@ -96,6 +97,7 @@ TSharedRef<SDockTab> FFrameRenderInspectorModule::OnSpawnPluginTab(const FSpawnT
 	if (Collector.IsValid())
 	{
 		Collector->SetCaptureEnabled(true);
+		Collector->SetVisualizeInViewport(bVisualizeInViewport);
 		Collector->SetOverlayOpacity(OverlayOpacity);
 		Collector->SetOverlayCoverage(OverlayCoverage);
 		Collector->SetSelectedBuffer(SelectedBufferName);
@@ -161,6 +163,7 @@ void FFrameRenderInspectorModule::EnsureCollectorInitialized()
 		{
 			Collector->SetSelectedTexture(SelectedTextureName);
 			Collector->SetSelectedBuffer(SelectedBufferName);
+			Collector->SetVisualizeInViewport(bVisualizeInViewport);
 			Collector->SetOverlayOpacity(OverlayOpacity);
 			Collector->SetOverlayCoverage(OverlayCoverage);
 			Collector->SetRangeLocked(bRangeLocked);

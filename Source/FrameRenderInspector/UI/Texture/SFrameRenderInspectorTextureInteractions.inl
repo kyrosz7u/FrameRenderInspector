@@ -46,6 +46,16 @@ void SFrameRenderInspectorUI::OnOverlayCoverageSliderChanged(float NewValue)
 	}
 }
 
+void SFrameRenderInspectorUI::OnVisualizeInViewportCheckStateChanged(ECheckBoxState NewState)
+{
+	bVisualizeInViewport = (NewState == ECheckBoxState::Checked);
+
+	if (OnVisualizeInViewportChangedDelegate.IsBound())
+	{
+		OnVisualizeInViewportChangedDelegate.Execute(bVisualizeInViewport);
+	}
+}
+
 FReply SFrameRenderInspectorUI::OnComputeVisibleRangeClicked()
 {
 	if (OnComputeVisibleRangeDelegate.IsBound())

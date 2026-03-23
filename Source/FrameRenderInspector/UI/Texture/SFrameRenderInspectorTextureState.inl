@@ -63,6 +63,11 @@ void SFrameRenderInspectorUI::SetOnOverlayCoverageChanged(FOnOverlayCoverageChan
 	OnOverlayCoverageChangedDelegate = InOnOverlayCoverageChanged;
 }
 
+void SFrameRenderInspectorUI::SetOnVisualizeInViewportChanged(FOnVisualizeInViewportChanged InOnVisualizeInViewportChanged)
+{
+	OnVisualizeInViewportChangedDelegate = InOnVisualizeInViewportChanged;
+}
+
 void SFrameRenderInspectorUI::SetOnComputeVisibleRange(FOnComputeVisibleRange InOnComputeVisibleRange)
 {
 	OnComputeVisibleRangeDelegate = InOnComputeVisibleRange;
@@ -112,6 +117,11 @@ void SFrameRenderInspectorUI::SetOverlaySettings(float InOpacity, float InCovera
 {
 	OverlayOpacity = FMath::Clamp(InOpacity, 0.0f, 1.0f);
 	OverlayCoverage = FMath::Clamp(InCoverage, 0.0f, 1.0f);
+}
+
+void SFrameRenderInspectorUI::SetVisualizeInViewport(bool bInVisualizeInViewport)
+{
+	bVisualizeInViewport = bInVisualizeInViewport;
 }
 
 void SFrameRenderInspectorUI::SetRangeState(float InMin, float InMax, bool bInHasRange, bool bInRangeLocked)

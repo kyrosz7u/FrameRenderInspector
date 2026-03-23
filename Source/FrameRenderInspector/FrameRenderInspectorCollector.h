@@ -42,6 +42,7 @@ public:
 	// Set the texture to visualize
 	void SetSelectedTexture(const FString& TextureName);
 	void SetSelectedBuffer(const FString& BufferName);
+	void SetVisualizeInViewport(bool bEnabled);
 	void SetOverlayOpacity(float InOpacity);
 	void SetOverlayCoverage(float InCoverage);
 	void SetRangeLocked(bool bLocked);
@@ -55,6 +56,7 @@ private:
 	TAtomic<bool> bIsCaptureEnabled;
 	FString SelectedTextureName;
 	FString SelectedBufferName;
+	bool bVisualizeInViewport = true;
 	float OverlayOpacity = 1.0f;
 	float OverlayCoverage = 0.5f;
 	float AutoRangeMin = 0.0f;
@@ -87,7 +89,7 @@ private:
 	void ProcessCollectedResources(const TMap<FString, FIntPoint>& TextureInfo, const TArray<FBufferDebuggerItem>& BufferItems);
 	FString GetSelectedTextureName() const;
 	FString GetSelectedBufferName() const;
-	void GetOverlaySettings(float& OutOpacity, float& OutCoverage, float& OutAutoRangeMin, float& OutAutoRangeMax) const;
+	void GetOverlaySettings(bool& bOutVisualizeInViewport, float& OutOpacity, float& OutCoverage, float& OutAutoRangeMin, float& OutAutoRangeMax) const;
 	void SetAutoRange(float InMin, float InMax);
 	bool ConsumeVisibleRangeUpdateRequest();
 	bool ConsumeTexturePixelSampleRequest(FIntPoint& OutPixelCoord);
